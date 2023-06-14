@@ -1,0 +1,14 @@
+/data/
+/data/.fr-UM2vIe/
+/data/darknet_dataset/
+/data/darknet_dataset/.fr-Wi5hvC/
+/data/gt/
+/data/gt/mot_challenge/
+/data/gt/mot_challenge/BirdMOT2023-train/
+/data/gt/mot_challenge/MOT17-train/
+/data/gt/mot_challenge/seqmaps/
+/data/gt/mot_challenge/BirdMOT2023_all.txt
+/data/sahi_slicing/
+/data/trackers/
+/data/coco_dataset.json
+!/birdmot_config.ini
