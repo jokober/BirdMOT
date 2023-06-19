@@ -28,8 +28,8 @@ def create_coco_annotation_file_from_path(image_path: Path, output_path: Path, c
         detection_model = AutoDetectionModel.from_pretrained(
             model_type='yolov8',
             model_path=model_path,
-            confidence_threshold=0.1,
-            device="cpu",  # or 'cuda:0'
+            confidence_threshold=0.5,
+            device="cuda:0",  # or 'cuda:0'
         )
 
         sahi_result = get_sliced_prediction(
