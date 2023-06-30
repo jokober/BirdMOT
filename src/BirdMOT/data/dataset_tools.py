@@ -1,8 +1,8 @@
 import json
 import os
 import shutil
-from pathlib import Path
-from typing import List
+from pathlib import Path, PosixPath
+from typing import List, Union
 
 from sahi.utils.coco import Coco, CocoVid, CocoVideo, CocoVidImage, CocoVidAnnotation
 from sahi.utils.file import save_json
@@ -13,18 +13,21 @@ from BirdMOT.data.slice_data import SliceParams, slice_dataset
 from BirdMOT.helper.folder_structure import folder_structure_obj
 
 
+def prepare_dataset(dataset_config):
+    pass
+
 def create_sliced_dataset(coco_annotation_file_path: Path, image_dir: Path, slice_params: SliceParams):
 
     dataset_path = folder_structure_obj.get_or_create_sliced_dataset_folder_path(slice_params)
     if not any((dataset_path / 'images').iterdir()):
         slice_dataset(coco_annotation_file_path, image_dir, dataset_path, slice_params)
-        val_train_split(coco_path=dataset_path / "coco_files/sliced_coco.json", output_path=dataset_path / "coco_files")
+        val_train_split(dataset_id = dataset_path.stem, coco_path=dataset_path / "coco_files/sliced_coco.json", output_path=dataset_path / "coco_files")
     else:
         print("Sliced dataset already exists. If you want to create a new one, delete the old one first.")
     print(dataset_path.as_posix())
     return dataset_path
 
-def val_train_split(coco_path: Path, output_path: Path, train_split_rate: float = 0.85):
+def val_train_split(dataset_id: str, coco_path: Path, output_path: Path, train_split_rate: float = 0.85):
     # init Coco object
     coco = Coco.from_coco_dict_or_path(coco_path.as_posix())
 
@@ -33,12 +36,18 @@ def val_train_split(coco_path: Path, output_path: Path, train_split_rate: float 
       train_split_rate=train_split_rate
     )
 
-    # export train val split files
-    save_json(result["train_coco"].json, (output_path / "train_split_coco.json").as_posix())
-    save_json(result["val_coco"].json, (output_path / "val_split_coco.json").as_posix())
+    train_path = output_path / f"{dataset_id}_train_split_coco.json"
+    val_path = output_path / f"{dataset_id}_val_split_coco.json"
 
-    assert (output_path / "").exists()
-    assert (output_path / "").exists()
+
+    # export train val split files
+    save_json(result["train_coco"].json, train_path.as_posix())
+    save_json(result["val_coco"].json, val_path.as_posix())
+
+    assert train_path.exists()
+    assert val_path.exists()
+
+    return train_path, val_path
 
 
 def merge_two_cocovid_files(coco_1_path: Path, coco_2_path: Path, output_path: Path = None) -> Coco:
@@ -79,7 +88,6 @@ def merge_cocovid_recurively_from_path(original_coco_vid: CocoVid, cocovid_json_
             assert len(categories) != 0, f"categories file is empty"
         original_coco_vid.add_categories_from_coco_category_list(categories)
 
-
     for cocovid_path in cocovid_json_path_list:
         print(cocovid_path)
         with open(cocovid_path) as json_file:
@@ -116,18 +124,42 @@ def merge_cocovid_recurively_from_path(original_coco_vid: CocoVid, cocovid_json_
             # Get video id
             video = CocoVideo(name=video['name'], video_id=1, frame_rate=fps, width=width, height=height)
 
-
-
-
-
     image = CocoVidImage(file_name='image_1.jpg', height=1, width =1, video_id=1, frame_id=1,)
     annotation = CocoVidAnnotation(bbox=[1, 1, 1, 1], category_id=1, category_name = '', image_id=1, instance_id=1)
     image.add_annotation()
     video.add_cocovidimage()
     original_coco_vid.add_video(video)
 
+def merge_coco_datasets(coco_json_paths: List, image_paths: Union[str,List],  categories: Path, output_path: Path = None,) -> Coco:
+    if categories is not None:
+        with open(categories) as json_file:
+            categories = json.load(json_file)
 
-def merge_coco_recursively_from_path(input_path: Path, image_path: Path, output_path: Path = None, categories: Path = None) -> Coco:
+        if type(image_paths) == str:
+            image_paths = [image_paths for it in coco_json_paths]
+            print('Warning: Using first best image path for all coco json files')
+
+        remapping_dict = {i:i+1 for i, _ in enumerate(categories['categories'])}
+        name2id_dict = {cat['name']: cat['id'] for cat in categories['categories']}
+        coco_1 = Coco(image_dir=image_paths[0])
+        coco_1.add_categories_from_coco_category_list(categories['categories'])
+
+    for coco_path, image_path in zip(coco_json_paths, image_paths):
+        print(coco_path.as_posix())
+        coco_2 = Coco.from_coco_dict_or_path(coco_path.as_posix(), image_dir=image_path)
+        coco_1.merge(coco_2, desired_name2id=name2id_dict)
+
+    coco_1.add_categories_from_coco_category_list(categories['categories'])
+
+    if output_path is not None:
+        save_json(coco_1.json, output_path)
+
+    return coco_1
+
+def merge_coco_recursively_from_path(input_path: Path,
+                                     image_path,
+                                     output_path: Path = None,
+                                     categories: Path = None) -> Coco:
     """
 
     Args:
@@ -141,36 +173,52 @@ def merge_coco_recursively_from_path(input_path: Path, image_path: Path, output_
     """
     # ToDo: this does not keep instance_ids and videos. Implement this yourself!
     assert  input_path.exists(), f"input_path {input_path} does not exist"
-    assert  image_path.exists(), f"image_path {image_path} does not exist"
     coco_paths = list(input_path.glob('**/*.json'))
-    assert len(coco_paths) > 1, f"There should be more than one coco file in the fixture directory. Found {list(input_path.glob('**/*.json'))}"
+    assert len(coco_paths) > 1,\
+        f"There should be more than one coco file in the fixture directory. Found {list(input_path.glob('**/*.json'))}"
+
+    return merge_coco_datasets(coco_paths, image_path, categories, output_path)
 
 
-    with open(categories) as json_file:
-        categories = json.load(json_file)
+def assemble_dataset_from_config(dataset_assembly_id, config_path: Path, coco_files_path: Path, output_path: Path,
+                                 categories_path: Path):
+    """
+    Assemble a dataset from a config file.
+    """
+    with open(config_path) as json_file:
+        config = json.load(json_file)
 
-    [print(cat) for cat in categories['categories']]
-    remapping_dict = {i:i+1 for i, _ in enumerate(categories['categories'])}
-    print(remapping_dict)
-    name2id_dict = {cat['name']: cat['id'] for cat in categories['categories']}
-    coco_1 = Coco(image_dir=image_path.as_posix())
-    coco_1.add_categories_from_coco_category_list(categories['categories'])
+    # Create output path
+    if not output_path.exists():
+        output_path.mkdir(parents=True)
 
+    # Create splits path lists
+    assert len(config['dataset_config']) == len(set([it['name'] for it in config['dataset_config']])), \
+        "Dataset names must be unique"
+    train_splits, val_splits = zip(*[val_train_split(dataset_id=dataset['name'].replace(' ', '_'),
+                                                     coco_path=coco_files_path / dataset['coco_annotation_file_path'],
+                                                     train_split_rate =dataset['train_split_rate'],
+                                                     output_path=output_path / dataset_assembly_id / "splits")
+                                     for dataset in config['dataset_config']])
+    # Create image path list
+    image_paths= [it['image_dir'] for it in config['dataset_config']]
 
-    #coco_1 = Coco.from_coco_dict_or_path(coco_paths[0].as_posix(), image_dir=image_path.as_posix())
-    for coco_path in coco_paths:
-        print(coco_path.as_posix())
-        coco_2 = Coco.from_coco_dict_or_path(coco_path.as_posix(), image_dir=image_path.as_posix())
-        coco_1.merge(coco_2, desired_name2id=name2id_dict)
+    # Crate dataset paths for train and val
+    train_dataset_path = output_path / dataset_assembly_id / f"{dataset_assembly_id}_train.json"
+    val_dataset_path = output_path / dataset_assembly_id / f"{dataset_assembly_id}_val.json"
 
-    coco_1.add_categories_from_coco_category_list(categories['categories'])
+    # Split to train and val datasets
+    train_coco: Coco = merge_coco_datasets(train_splits, image_paths, categories_path, train_dataset_path)
+    val_coco: Coco = merge_coco_datasets(val_splits, image_paths, categories_path, val_dataset_path )
 
-    if output_path is not None:
-        save_json(coco_1.json, output_path)
-
-    return coco_1
-
-
+    return {
+        "train": {
+            "coco": train_coco,
+            "path": train_dataset_path},
+        "val": {
+            "coco": val_coco,
+            "path": val_dataset_path}
+    }
 
 def coco2yolov5(dataset_path: Path, coco_images_dir: Path):
     # init Coco object

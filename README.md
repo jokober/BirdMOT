@@ -15,6 +15,11 @@
 |    ├── models
 ```
 
+## Assemble Dataset
+```bash
+python -m scripts.assemble_dataset first_mix --coco_annotations_dir /media/data/BirdMOT/local_data/dataset/coco_files --output_path /media/data/BirdMOT/local_data/dataset/coco_files/dataset_assemblies --categories_path /home/fids/fids/BirdMOT/tests/fixtures/coco_fixtures/coco_categories_three_classes.json --config /home/fids/fids/BirdMOT/experiments/val_wo_tracking_dataset.json
+```
+
 ## Tasks
 - [ ] Get Dataset Stats
 - [ ] Save models and data

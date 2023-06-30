@@ -12,7 +12,7 @@ config_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'birdnet_config.i
 coco_annotations_fixture_dir = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/annotations')
 primary_coco_annotations_fixture_path = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/annotations' / 'C0085_125820_125828_scalabel_converted_coco_format_track_box.json')
 secondary_coco_annotations_fixture_path = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/annotations' / 'C0085_204724_204728_scalabel_converted_coco_format_track_box.json')
-
+coco_categories_fixture_path = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/coco_categories.json')
 
 
 
@@ -28,6 +28,7 @@ yolov8_test_model = (Path(__file__).parents[1] / 'fixtures' / "models" / "yolov8
 
 
 # Other
+dataset_config_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'dataset_config.json'
 
 @pytest.fixture(scope='session')
 def local_data_path_fixture(tmp_path_factory):

@@ -14,12 +14,12 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--input_path", type=str, required=True)
     parser.add_argument("--image_path", type=str, required=True)
-    parser.add_argument("--output_path", type=str, required=True)
+    parser.add_argument("--output_path", type=str, required=False)
     parser.add_argument("--categories", type=str, required=True)
     args = parser.parse_args()
 
     merge_coco_recursively_from_path(input_path = Path(args.input_path),
-                                     image_path = Path(args.image_path),
+                                     image_path = args.image_path,
                                      output_path = Path(
                                          args.output_path),
                                      categories= Path(args.categories)
