@@ -13,7 +13,8 @@ coco_annotations_fixture_dir = (Path(__file__).parents[1] / 'fixtures' / 'coco_f
 primary_coco_annotations_fixture_path = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/annotations' / 'C0085_125820_125828_scalabel_converted_coco_format_track_box.json')
 secondary_coco_annotations_fixture_path = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/annotations' / 'C0085_204724_204728_scalabel_converted_coco_format_track_box.json')
 coco_categories_fixture_path = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/coco_categories.json')
-
+train_coco_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures' / "dataset_assemblies/test_assembly/test_assembly_train.json"
+val_coco_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures' / "dataset_assemblies/test_assembly/test_assembly_val.json"
 
 
 # Images
@@ -24,11 +25,14 @@ primary_val_images_path_fixture = coco_images_fixture_path / "good_04_2021" / "C
 # Models
 yolov8_test_model = (Path(__file__).parents[1] / 'fixtures' / "models" / "yolov8n.pt")
 
+# Configs
+dataset_config_fixture_path = Path(__file__).parents[1] / 'fixtures/config/dataset_assembly' / 'test_assembly_config.json'
+experiment_config_fixture_path = Path(__file__).parents[1] / 'fixtures/config/experiment_config' / 'test_experiment_config.json'
+
 # Results
 
-
 # Other
-dataset_config_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'dataset_config.json'
+
 
 @pytest.fixture(scope='session')
 def local_data_path_fixture(tmp_path_factory):
@@ -78,7 +82,7 @@ def sahi_prediction_params():
         postprocess_match_metric = 'IOS',
         postprocess_match_threshold = 0.5,
         export_pickle = False,
-        dataset_json_path = "/home/jo/coding_projects/fids/BirdMOT/tests/Test BirdMOT/exp27/results.json",
+        dataset_json_path = primary_coco_annotations_fixture_path.as_posix(),
         project = 'Test BirdMOT',
         name = 'test_exp',
         return_dict = True,

@@ -1,0 +1,24 @@
+{
+  "experiments": [
+    {
+      "model_config": {
+        "epochs": 2,
+        "batch": 7,
+        "model": "yolov8n.pt",
+        "patience": 20,
+        "name": "YOLOv8x+FI+PO",
+        "project": "BirdMOT Yolov8x SAHI",
+        "device": "0",
+        "imgsz": 640
+      },
+      "train_slice_params": {
+        "height": 640,
+        "width": 640,
+        "overlap_height_ratio": 0.1,
+        "overlap_width_ratio": 0.1,
+        "min_area_ratio": 0.2,
+        "ignore_negative_samples": false
+      }
+    }
+  ]
+}

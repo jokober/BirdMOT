@@ -21,8 +21,8 @@ def create_sliced_dataset(train_coco_path: Path, val_coco_path, image_dir: Path,
     dataset_path = folder_structure_obj.get_or_create_sliced_dataset_folder_path(slice_params, overwrite_existing=overwrite_existing)
 
     if not any((dataset_path / 'images').iterdir()):
-        train_coco_dict, train_coco_path = slice_dataset(train_coco_path, image_dir, output_dir=dataset_path, output_coco_dir=dataset_path / "coco_files" / 'sliced_train_coco.json', slice_params=slice_params)
-        val_coco_dict, val_coco_path = slice_dataset(val_coco_path, image_dir, output_dir=dataset_path, output_coco_dir=dataset_path / "coco_files" / 'sliced_val_coco.json', slice_params=slice_params)
+        train_coco_dict, train_coco_path = slice_dataset(train_coco_path, image_dir=image_dir, output_dir=dataset_path, output_coco_dir=dataset_path / "coco_files" / 'sliced_train_coco.json', slice_params=slice_params)
+        val_coco_dict, val_coco_path = slice_dataset(val_coco_path, image_dir = image_dir, output_dir=dataset_path, output_coco_dir=dataset_path / "coco_files" / 'sliced_val_coco.json', slice_params=slice_params)
     else:
         print("Sliced dataset already exists. If you want to create a new one, delete the old one first.")
     print(dataset_path.as_posix())
@@ -182,7 +182,7 @@ def merge_coco_recursively_from_path(input_path: Path,
 
 
 def assemble_dataset_from_config(dataset_assembly_id, config_path: Path, coco_files_path: Path, output_path: Path,
-                                 categories_path: Path):
+                                 image_path: Path, categories_path: Path):
     """
     Assemble a dataset from a config file.
     """
@@ -202,7 +202,7 @@ def assemble_dataset_from_config(dataset_assembly_id, config_path: Path, coco_fi
                                                      output_path=output_path / dataset_assembly_id / "splits")
                                      for dataset in config['dataset_config']])
     # Create image path list
-    image_paths= [it['image_dir'] for it in config['dataset_config']]
+    image_paths= [it['image_dir'] if it['image_dir'] != "" else image_path for it in config['dataset_config']]
 
     # Crate dataset paths for train and val
     train_dataset_path = output_path / dataset_assembly_id / f"{dataset_assembly_id}_train.json"
