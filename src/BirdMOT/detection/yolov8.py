@@ -46,42 +46,33 @@ class Yolov8TrainParams:
     name: str
     project: str
     device: str
+    imgsz: int
 
 
 
 
 
-def train_yolov8(model: str, yolo_data_path: Path, yolo_train_params: Yolov8TrainParams):
+def train_yolov8(yolo_data_path: Path, yolo_train_params: Yolov8TrainParams):
     # Load a model
-    model = YOLO(model)
+    model = YOLO(yolo_train_params.model)
 
     # Use the model
     model.train(data=yolo_data_path.as_posix(), **asdict(yolo_train_params))  # train the model
     metrics = model.val()  # evaluate model performance on the validation set
-    results = model("https://ultralytics.com/images/bus.jpg", yolo_train_params.device)  # predict on an image
     success = model.export(format="onnx")  # export the model to ONNX format
 
-
-
-
-
 def sliced_yolov8_train(yolov8_params: Union[dict, Yolov8TrainParams], slice_params: Union[dict, SliceParams],
-                        coco_annotation_file_path: Path, image_dir: Path, device: str = 'cpu'):
+                        train_coco_path: Path, val_coco_path: Path, image_dir: Path, device: str = 'cpu'):
     if type(yolov8_params) == dict:
         yolov8_params = Yolov8TrainParams(**yolov8_params)
 
     if type(slice_params) == dict:
         slice_params = SliceParams(**slice_params)
 
-    if yolov8_params.model in YOLOV8_PRETRAINED_MODELS:
-        slice_params.slice_width = 640
-        slice_params.slice_height = 640
+    dataset_path, sliced_train_coco_path, sliced_val_coco_path  = create_sliced_dataset(train_coco_path, val_coco_path, image_dir=image_dir, slice_params=slice_params, overwrite_existing=True)
 
-    dataset_path = create_sliced_dataset(coco_annotation_file_path=coco_annotation_file_path, image_dir=image_dir,
-                                         slice_params=slice_params)
-
-    coco2yolov5(dataset_path=dataset_path, coco_images_dir=dataset_path / "images")
-    train_yolov8("yolov8n.pt", (dataset_path / "yolov5_files" / "data.yaml"), yolo_train_params=yolov8_params)
+    coco2yolov5(dataset_path, sliced_train_coco_path, sliced_val_coco_path, coco_images_dir=dataset_path / "images")
+    train_yolov8((dataset_path / "yolov5_files" / "data.yaml"), yolo_train_params=yolov8_params)
 
 
 if __name__ == "__main__":

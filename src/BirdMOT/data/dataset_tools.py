@@ -10,22 +10,23 @@ from sahi.utils.coco import Coco, export_coco_as_yolov5
 
 
 from BirdMOT.data.slice_data import SliceParams, slice_dataset
-from BirdMOT.helper.folder_structure import folder_structure_obj
+from BirdMOT.helper.folder_structure import folder_structure_obj, FolderStructure
 
 
 def prepare_dataset(dataset_config):
     pass
 
-def create_sliced_dataset(coco_annotation_file_path: Path, image_dir: Path, slice_params: SliceParams):
+def create_sliced_dataset(train_coco_path: Path, val_coco_path, image_dir: Path, slice_params: SliceParams, overwrite_existing: bool = True):
 
-    dataset_path = folder_structure_obj.get_or_create_sliced_dataset_folder_path(slice_params)
+    dataset_path = folder_structure_obj.get_or_create_sliced_dataset_folder_path(slice_params, overwrite_existing=overwrite_existing)
+
     if not any((dataset_path / 'images').iterdir()):
-        slice_dataset(coco_annotation_file_path, image_dir, dataset_path, slice_params)
-        val_train_split(dataset_id = dataset_path.stem, coco_path=dataset_path / "coco_files/sliced_coco.json", output_path=dataset_path / "coco_files")
+        train_coco_dict, train_coco_path = slice_dataset(train_coco_path, image_dir, output_dir=dataset_path, output_coco_dir=dataset_path / "coco_files" / 'sliced_train_coco.json', slice_params=slice_params)
+        val_coco_dict, val_coco_path = slice_dataset(val_coco_path, image_dir, output_dir=dataset_path, output_coco_dir=dataset_path / "coco_files" / 'sliced_val_coco.json', slice_params=slice_params)
     else:
         print("Sliced dataset already exists. If you want to create a new one, delete the old one first.")
     print(dataset_path.as_posix())
-    return dataset_path
+    return dataset_path, train_coco_path, val_coco_path
 
 def val_train_split(dataset_id: str, coco_path: Path, output_path: Path, train_split_rate: float = 0.85):
     # init Coco object
@@ -130,12 +131,12 @@ def merge_cocovid_recurively_from_path(original_coco_vid: CocoVid, cocovid_json_
     video.add_cocovidimage()
     original_coco_vid.add_video(video)
 
-def merge_coco_datasets(coco_json_paths: List, image_paths: Union[str,List],  categories: Path, output_path: Path = None,) -> Coco:
+def merge_coco_datasets(coco_json_paths: List, image_paths: Union[str,Path, List],  categories: Path, output_path: Path = None,) -> Coco:
     if categories is not None:
         with open(categories) as json_file:
             categories = json.load(json_file)
 
-        if type(image_paths) == str:
+        if type(image_paths) == str or type(image_paths) == PosixPath:
             image_paths = [image_paths for it in coco_json_paths]
             print('Warning: Using first best image path for all coco json files')
 
@@ -220,10 +221,10 @@ def assemble_dataset_from_config(dataset_assembly_id, config_path: Path, coco_fi
             "path": val_dataset_path}
     }
 
-def coco2yolov5(dataset_path: Path, coco_images_dir: Path):
+def coco2yolov5(dataset_path: Path, train_coco_path: Path, val_coco_path, coco_images_dir: Path):
     # init Coco object
-    train_coco = Coco.from_coco_dict_or_path((dataset_path / 'coco_files' / "train_split_coco.json").as_posix(), image_dir=coco_images_dir.as_posix())
-    val_coco = Coco.from_coco_dict_or_path((dataset_path / 'coco_files' / "val_split_coco.json").as_posix(), image_dir=coco_images_dir.as_posix())
+    train_coco = Coco.from_coco_dict_or_path(train_coco_path.as_posix(), image_dir=coco_images_dir.as_posix())
+    val_coco = Coco.from_coco_dict_or_path(val_coco_path.as_posix(), image_dir=coco_images_dir.as_posix())
 
     # export converted YoloV5 formatted dataset into given output_dir with given train/val split
     data_yml_path = export_coco_as_yolov5(

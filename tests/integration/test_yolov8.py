@@ -7,8 +7,7 @@ from fixtures.fixtures import coco_images_fixture_path, \
 
 
 def test_yolov8_train_from_nested_coco(local_data_path_fixture, slice_params_fixture, yolov8_params_fixture):
-    dataset_path = create_sliced_dataset(coco_annotation_file_path=primary_coco_annotations_fixture_path,
-                                         image_dir=coco_images_fixture_path, slice_params=slice_params_fixture)
+    dataset_path, train_coco_path, val_coco_path = create_sliced_dataset(train_coco_path, val_coco_path, image_dir=coco_images_fixture_path, slice_params=slice_params_fixture)
 
     coco2yolov5(dataset_path=dataset_path, coco_images_dir=dataset_path / "images")
 
@@ -23,4 +22,4 @@ def test_sliced_yolov8_prediction(sahi_prediction_params, local_data_path_fixtur
     sliced_batch_predict(image_dir = primary_val_images_path_fixture, sahi_prediction_params=sahi_prediction_params)
 
 def test_sliced_yolov8_train(yolov8_params_fixture, slice_params_fixture):
-    sliced_yolov8_train(yolov8_params=yolov8_params_fixture, slice_params=slice_params_fixture, coco_annotation_file_path=primary_coco_annotations_fixture_path, image_dir=coco_images_fixture_path)
+    sliced_yolov8_train(yolov8_params=yolov8_params_fixture, slice_params=slice_params_fixture, train_coco_path=primary_coco_annotations_fixture_path, image_dir=coco_images_fixture_path)

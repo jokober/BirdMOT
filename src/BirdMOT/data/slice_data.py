@@ -19,13 +19,13 @@ import matplotlib.pyplot as plt
 
 
 
-def slice_dataset(coco_annotation_file_path: Path, image_dir: Path, output_dir: Path, slice_params: SliceParams):
+def slice_dataset(coco_annotation_file_path: Path, image_dir: Path, output_dir: Path, output_coco_dir, slice_params: SliceParams):
     coco_dict, coco_path = slice_coco(
         coco_annotation_file_path=coco_annotation_file_path.as_posix(),
         image_dir=image_dir.as_posix(),
-        output_coco_annotation_file_name="sliced_coco.json",
+        output_coco_annotation_file_name=output_coco_dir.name, # The strip is required as sahi adds '_coco.json' to the output file name
         ignore_negative_samples=slice_params.ignore_negative_samples,
-        output_dir=(output_dir / 'images').as_posix(),
+        output_dir=(output_dir / "images").as_posix(),
         slice_height=slice_params.height,
         slice_width=slice_params.width,
         overlap_height_ratio=slice_params.overlap_height_ratio,
@@ -33,4 +33,6 @@ def slice_dataset(coco_annotation_file_path: Path, image_dir: Path, output_dir: 
         min_area_ratio=slice_params.min_area_ratio,
         verbose=slice_params.verbose,
     )
-    shutil.move(output_dir / 'images' / "sliced_coco.json_coco.json", output_dir / 'coco_files' / "sliced_coco.json") # ToDo: Where does this weird name come from?
+    shutil.move(coco_path, output_coco_dir)
+
+    return coco_dict, output_coco_dir

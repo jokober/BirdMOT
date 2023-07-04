@@ -46,6 +46,7 @@ def yolov8_params_fixture():
         name="pytest_experiment",
         project="BirdMOT Yolov8",
         device="cpu",
+        imgsz=640
     )
 @pytest.fixture
 def slice_params_fixture():
