@@ -1,3 +1,9 @@
+# Install
+Conda
+```bash
+conda env create -f environment.yml
+``` 
+
 ## Local Data Folder Structure
 ```markdown
 ├── local_data

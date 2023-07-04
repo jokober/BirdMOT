@@ -7,8 +7,5 @@ dependencies:
   - mamba
   - pip  # pip must be mentioned explicitly, or conda-lock will fail
   - poetry  # or 1.1.*, or no version at all -- as you want
-
-
-# Non-standard section listing target platforms for conda-lock:
-platforms:
-  - linux-64/en/
+  - scikit-image
+  - imagecodecs
