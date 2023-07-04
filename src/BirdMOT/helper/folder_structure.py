@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 from BirdMOT.data import SliceParams
@@ -26,9 +27,11 @@ class FolderStructure:
         self.models_dir.mkdir(parents=True, exist_ok=True)
         self.predictions_dir.mkdir(parents=True, exist_ok=True)
 
-    def get_or_create_sliced_dataset_folder_path(self, slice_params: SliceParams) -> Path:
+    def get_or_create_sliced_dataset_folder_path(self, slice_params: SliceParams, overwrite_existing: bool = True) -> Path:
         dataset_path = self.sliced_datasets_dir / f"{slice_params.height}_{slice_params.width}_{slice_params.overlap_height_ratio}_{slice_params.overlap_width_ratio}_{slice_params.min_area_ratio}".replace(
             ".", "_")
+        if overwrite_existing and dataset_path.exists():
+            shutil.rmtree(dataset_path)
         if not dataset_path.exists():
             (dataset_path / "coco_files" / 'annotations').mkdir(parents=True)
             (dataset_path / "yolov5_files").mkdir(parents=True)

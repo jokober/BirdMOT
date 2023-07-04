@@ -7,7 +7,7 @@ from BirdMOT.detection.SahiPredictionParams import SahiPredictionParams
 from BirdMOT.detection.predict import sliced_batch_predict
 
 
-def evaluate_coco(dataset_json_path, result_json_path, iou_thrs=0.8, out_dir=None):
+def evaluate_coco(dataset_json_path, result_json_path, iou_thrs=0.50, out_dir=None):
     eval_results = evaluate(
         dataset_json_path =dataset_json_path,
         result_json_path =result_json_path,

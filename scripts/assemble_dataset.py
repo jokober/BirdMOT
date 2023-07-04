@@ -9,6 +9,7 @@ if __name__ == "__main__":
     parser.add_argument("assembly_name", type=str)
     parser.add_argument("--coco_annotations_dir", type=pathlib.Path, required=True)
     parser.add_argument("--output_path", type=pathlib.Path, required=False)
+    parser.add_argument("--image_path", type=pathlib.Path, required=False)
     parser.add_argument("--categories_path", type=pathlib.Path, required=True)
     parser.add_argument("--config", type=pathlib.Path, required=True)
     args = parser.parse_args()
@@ -16,7 +17,7 @@ if __name__ == "__main__":
     # Create dataset assembled by the config
     dataset_assembly_results = assemble_dataset_from_config(args.assembly_name, args.config,
                                                             args.coco_annotations_dir, args.output_path,
-                                                            args.categories_path)
+                                                            args.image_path, args.categories_path)
 
     # Create stats and save them
     datasets_stats = [{

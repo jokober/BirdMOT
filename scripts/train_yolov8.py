@@ -1,3 +1,4 @@
+import json
 from argparse import ArgumentParser
 from pathlib import Path
 
@@ -6,8 +7,10 @@ from BirdMOT.detection.yolov8 import sliced_yolov8_train, Yolov8TrainParams
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--coco_annotation_file_path", type=str, required=True)
-    parser.add_argument("--image_path", type=str, required=True)
+    parser.add_argument("--train_coco_path", type=Path, required=True)
+    parser.add_argument("--val_coco_path", type=Path, required=True)
+    parser.add_argument("--image_path", type=Path, required=True)
+    parser.add_argument("--experiment_config", type=Path, required=False)
     args = parser.parse_args()
 
     #yolov8_train_params = Yolov8TrainParams(
@@ -29,6 +32,7 @@ if __name__ == "__main__":
             name = "pre_experiment",
             project = "BirdMOT Yolov8",
             device= "0",
+            imgsz=640
         ),
         #     Yolov8TrainParams(
         #     epochs=150,
@@ -78,6 +82,16 @@ if __name__ == "__main__":
         ignore_negative_samples=True
     )
 
-    for yolov8_train_params in yolov8_train_params_list:
-        yolov8_train_params.name = f'{yolov8_train_params.model} no_hyp'
-        sliced_yolov8_train(yolov8_train_params, slice_params, Path(args.coco_annotation_file_path), Path(args.image_path), device='0')
+    if args.experiment_config:
+        assert args.experiment_config.exists(), f"Experiment config {args.experiment_config} does not exist"
+        with open(args.experiment_config) as json_file:
+            experiment_config = json.load(json_file)
+
+        for experiment in experiment_config["experiments"]:
+            print(experiment)
+            sliced_yolov8_train(Yolov8TrainParams(**experiment["model_config"]), SliceParams(**experiment["train_slice_params"]), args.train_coco_path, args.val_coco_path, args.image_path, device='0')
+
+    else:
+        for yolov8_train_params in yolov8_train_params_list:
+            yolov8_train_params.name = f'{yolov8_train_params.model} no_hyp'
+            sliced_yolov8_train(yolov8_train_params, slice_params, Path(args.coco_annotation_file_path), Path(args.image_path), device='0')
