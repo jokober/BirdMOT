@@ -2,6 +2,7 @@ import json
 from argparse import ArgumentParser
 from pathlib import Path
 
+from BirdMOT.data.DatasetCreator import DatasetCreator
 from BirdMOT.data.SliceParams import SliceParams
 from BirdMOT.detection.yolov8 import sliced_yolov8_train, Yolov8TrainParams
 
@@ -30,7 +31,7 @@ if __name__ == "__main__":
             model = 'YOLOv8x',
             patience =50,
             name = "pre_experiment",
-            project = "BirdMOT Yolov8",
+            project = DatasetCreator().models_dir,
             device= "0",
             imgsz=640
         ),
@@ -89,6 +90,7 @@ if __name__ == "__main__":
 
         for experiment in experiment_config["experiments"]:
             print(experiment)
+            experiment["project"] = DatasetCreator().models_dir.as_posix()
             sliced_yolov8_train(Yolov8TrainParams(**experiment["model_config"]), SliceParams(**experiment["train_slice_params"]), args.train_coco_path, args.val_coco_path, args.image_path, device='0')
 
     else:

@@ -9,7 +9,7 @@ import plotly.express as px
 from plotly.offline import iplot
 from sahi.utils.coco import Coco
 
-from BirdMOT.helper.folder_structure import FolderStructure
+from BirdMOT.data.DatasetCreator import DatasetCreator
 
 
 def get_basic_dataset_tracking_stats(coco_path: Path, ) -> dict:
@@ -152,10 +152,10 @@ def datasets_stats_from_config(config):
         datasets_stats.append(
             {
                 'name': dataset['name'],
-                'stats': calculate_dataset_stats(FolderStructure().coco_files_dir / coco_path, FolderStructure().dataset_stats_dir)
+                'stats': calculate_dataset_stats(DatasetCreator().coco_files_dir / coco_path, DatasetCreator().dataset_stats_dir)
              })
     print(datasets_stats)
-    save_dataset_comparison_stats_table(datasets_stats, FolderStructure().dataset_stats_dir)
+    save_dataset_comparison_stats_table(datasets_stats, DatasetCreator().dataset_stats_dir)
     return datasets_stats
 
 if __name__ == "__main__":
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.coco_path:
-        calculate_dataset_stats(Path(args.coco_path), FolderStructure().dataset_stats_dir)
+        calculate_dataset_stats(Path(args.coco_path), DatasetCreator().dataset_stats_dir)
     elif args.config:
         datasets_stats_from_config(args.config)
 

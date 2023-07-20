@@ -1,3 +1,5 @@
+import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -12,7 +14,7 @@ config_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'birdnet_config.i
 coco_annotations_fixture_dir = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/annotations')
 primary_coco_annotations_fixture_path = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/annotations' / 'C0085_125820_125828_scalabel_converted_coco_format_track_box.json')
 secondary_coco_annotations_fixture_path = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/annotations' / 'C0085_204724_204728_scalabel_converted_coco_format_track_box.json')
-coco_categories_fixture_path = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/coco_categories.json')
+coco_categories_fixture_path = (Path(__file__).parents[2] / 'config' / 'categories' / 'BirdMOT_categories.json')
 train_coco_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures' / "dataset_assemblies/test_assembly/test_assembly_train.json"
 val_coco_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures' / "dataset_assemblies/test_assembly/test_assembly_val.json"
 
@@ -23,21 +25,19 @@ primary_coco_images_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'coc
 primary_val_images_path_fixture = coco_images_fixture_path / "good_04_2021" / "C0085_125820_125828"
 
 # Models
-yolov8_test_model = (Path(__file__).parents[1] / 'fixtures' / "models" / "yolov8n.pt")
+yolov8_test_model = (Path(__file__).parents[1] / 'fixtures' / "models" / "YOLOv8n+FI+PO" / "weights" / "best.pt")
 
 # Configs
 dataset_config_fixture_path = Path(__file__).parents[1] / 'fixtures/config/dataset_assembly' / 'test_assembly_config.json'
-experiment_config_fixture_path = Path(__file__).parents[1] / 'fixtures/config/experiment_config' / 'test_experiment_config.json'
+experiment_config_fixture_path = Path(__file__).parents[1] / 'fixtures/config/experiments' / 'yolov8_sahi.json'
 
 # Results
 
 # Other
 
 
-@pytest.fixture(scope='session')
-def local_data_path_fixture(tmp_path_factory):
-    fn = tmp_path_factory.mktemp('local_data')
-    return fn
+
+
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def yolov8_params_fixture():
     return Yolov8TrainParams(
         epochs=3,
         batch=3,
-        model = 'YOLOv8n',
+        model = 'yolov8n.pt',
         patience=10,
         name="pytest_experiment",
         project="BirdMOT Yolov8",

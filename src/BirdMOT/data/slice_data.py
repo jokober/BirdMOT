@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from BirdMOT.data.SliceParams import SliceParams
+from BirdMOT.data.dataset_tools import rapair_absolute_image_paths
 
 os.getcwd()
 
@@ -19,9 +20,10 @@ import matplotlib.pyplot as plt
 
 
 
-def slice_dataset(coco_annotation_file_path: Path, image_dir: Path, output_dir: Path, output_coco_dir, slice_params: SliceParams):
+def slice_dataset(coco_path: Path, image_dir: Path, output_dir: Path, output_coco_dir, slice_params: SliceParams):
+    rapair_absolute_image_paths(coco_path, image_dir, overwrite_file=True)
     coco_dict, coco_path = slice_coco(
-        coco_annotation_file_path=coco_annotation_file_path.as_posix(),
+        coco_annotation_file_path=coco_path.as_posix(),
         image_dir=image_dir.as_posix(),
         output_coco_annotation_file_name=output_coco_dir.name, # The strip is required as sahi adds '_coco.json' to the output file name
         ignore_negative_samples=slice_params.ignore_negative_samples,

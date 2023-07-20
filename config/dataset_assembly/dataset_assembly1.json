@@ -1,13 +1,5 @@
 {
-  "experiment_name": "YOLOv8x",
-  "project_name": "Different Dataset Experiments",
-  "model_config:": {
-    "model_name": "YOLOv8x",
-    "patience": 30
-  },
-  "slicing_aided_fine_tuning_config": {
-    "slice_width_range": [300, 800]
-  },
+  "dataset_assembly_id": "first_mix",
   "dataset_config": [
     {
       "name": "Low Bitrate Random 06 2023",
@@ -46,3 +38,4 @@
     }
   ]
 }
+

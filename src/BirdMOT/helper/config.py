@@ -1,4 +1,5 @@
 import configparser
+import os
 from pathlib import Path
 
 config = configparser.ConfigParser()
@@ -8,7 +9,6 @@ assert (project_root / 'birdmot_config.ini').exists()
 config.read(project_root / 'birdmot_config.ini')
 
 def get_local_data_path() -> Path:
-    return Path(config['DEFAULT']['local_data_path'])
+    assert os.environ.get('BirdMOT_DATA_PATH') is not None, "BirdMOT_DATA_PATH environment variable not set. Please select a target path, where your data will be stored."
+    return Path(os.environ.get("BirdMOT_DATA_PATH"))
 
-def get_mlflow_tracking_uri():
-    return Path(config['MLFLOW']['mlflow_tracking_uri'])

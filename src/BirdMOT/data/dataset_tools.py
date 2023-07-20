@@ -8,26 +8,6 @@ from sahi.utils.coco import Coco, CocoVid, CocoVideo, CocoVidImage, CocoVidAnnot
 from sahi.utils.file import save_json
 from sahi.utils.coco import Coco, export_coco_as_yolov5
 
-
-from BirdMOT.data.slice_data import SliceParams, slice_dataset
-from BirdMOT.helper.folder_structure import folder_structure_obj, FolderStructure
-
-
-def prepare_dataset(dataset_config):
-    pass
-
-def create_sliced_dataset(train_coco_path: Path, val_coco_path, image_dir: Path, slice_params: SliceParams, overwrite_existing: bool = True):
-
-    dataset_path = folder_structure_obj.get_or_create_sliced_dataset_folder_path(slice_params, overwrite_existing=overwrite_existing)
-
-    if not any((dataset_path / 'images').iterdir()):
-        train_coco_dict, train_coco_path = slice_dataset(train_coco_path, image_dir=image_dir, output_dir=dataset_path, output_coco_dir=dataset_path / "coco_files" / 'sliced_train_coco.json', slice_params=slice_params)
-        val_coco_dict, val_coco_path = slice_dataset(val_coco_path, image_dir = image_dir, output_dir=dataset_path, output_coco_dir=dataset_path / "coco_files" / 'sliced_val_coco.json', slice_params=slice_params)
-    else:
-        print("Sliced dataset already exists. If you want to create a new one, delete the old one first.")
-    print(dataset_path.as_posix())
-    return dataset_path, train_coco_path, val_coco_path
-
 def val_train_split(dataset_id: str, coco_path: Path, output_path: Path, train_split_rate: float = 0.85):
     # init Coco object
     coco = Coco.from_coco_dict_or_path(coco_path.as_posix())
@@ -181,7 +161,7 @@ def merge_coco_recursively_from_path(input_path: Path,
     return merge_coco_datasets(coco_paths, image_path, categories, output_path)
 
 
-def assemble_dataset_from_config(dataset_assembly_id, config_path: Path, coco_files_path: Path, output_path: Path,
+def assemble_dataset_from_config(config_path: Path, coco_files_path: Path, output_path: Path,
                                  image_path: Path, categories_path: Path):
     """
     Assemble a dataset from a config file.
@@ -199,14 +179,14 @@ def assemble_dataset_from_config(dataset_assembly_id, config_path: Path, coco_fi
     train_splits, val_splits = zip(*[val_train_split(dataset_id=dataset['name'].replace(' ', '_'),
                                                      coco_path=coco_files_path / dataset['coco_annotation_file_path'],
                                                      train_split_rate =dataset['train_split_rate'],
-                                                     output_path=output_path / dataset_assembly_id / "splits")
+                                                     output_path=output_path / config["dataset_assembly_id"] / "splits")
                                      for dataset in config['dataset_config']])
     # Create image path list
     image_paths= [it['image_dir'] if it['image_dir'] != "" else image_path for it in config['dataset_config']]
 
     # Crate dataset paths for train and val
-    train_dataset_path = output_path / dataset_assembly_id / f"{dataset_assembly_id}_train.json"
-    val_dataset_path = output_path / dataset_assembly_id / f"{dataset_assembly_id}_val.json"
+    train_dataset_path = output_path / config['dataset_assembly_id'] / f"{config['dataset_assembly_id']}_train.json"
+    val_dataset_path = output_path / config['dataset_assembly_id'] / f"{config['dataset_assembly_id']}_val.json"
 
     # Split to train and val datasets
     train_coco: Coco = merge_coco_datasets(train_splits, image_paths, categories_path, train_dataset_path)
@@ -221,18 +201,31 @@ def assemble_dataset_from_config(dataset_assembly_id, config_path: Path, coco_fi
             "path": val_dataset_path}
     }
 
-def coco2yolov5(dataset_path: Path, train_coco_path: Path, val_coco_path, coco_images_dir: Path):
-    # init Coco object
-    train_coco = Coco.from_coco_dict_or_path(train_coco_path.as_posix(), image_dir=coco_images_dir.as_posix())
-    val_coco = Coco.from_coco_dict_or_path(val_coco_path.as_posix(), image_dir=coco_images_dir.as_posix())
+def rapair_absolute_image_paths(coco_path: Path, image_path: Path, overwrite_file = True):
+    # Go through all image paths in coco file and adjust them to absolute path on disk
+    with open(coco_path) as json_file:
+        coco_dict = json.load(json_file)
 
-    # export converted YoloV5 formatted dataset into given output_dir with given train/val split
-    data_yml_path = export_coco_as_yolov5(
-        output_dir=(dataset_path / 'yolov5_files').as_posix(),
-        train_coco=train_coco,
-        val_coco=val_coco
-    )
+    for it in coco_dict['images']:
+        new_abs_image_path = str(find_correct_image_path(image_path, it["file_name"]))
+        it['file_name'] = new_abs_image_path
 
-    shutil.copy((dataset_path / 'yolov5_files' / "data.yml").as_posix(),( dataset_path / 'yolov5_files' / "data.yaml").as_posix())
+    if overwrite_file:
+        with open(coco_path, 'w') as fp:
+            json.dump(coco_dict, fp)
+
+    return coco_dict
+
+def find_correct_image_path(image_folder_path: Path, old_image_path: str) -> Path:
+    if Path(old_image_path).exists() or not os.path.isabs(old_image_path):
+        return old_image_path
+    else:
+        parts = Path(old_image_path).parts
+        if parts.count('images')==1:
+            new_image_path = image_folder_path.joinpath(*parts[parts.index('images')+1:])
+            assert new_image_path.exists(), f"New image path {new_image_path} does not exist"
+            return new_image_path
+        else:
+            raise AssertionError(f"There are several 'images' in the path parts of {parts}")
 
 

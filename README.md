@@ -1,8 +1,25 @@
 # Install
+## Install using conda and poetry
 Conda
 ```bash
 conda env create -f environment.yml
 ``` 
+Activate Conda Environment
+```bash
+ conda activate BirdMOT
+``
+
+## Install using docker
+```bash
+docker compose  -f docker-compose.yml build
+docker compose -f docker-compose.yml run birdmot-gpu
+```
+
+## Environment Variables
+Set following environment variable to the path of your local data folder. This is where your dataset, sliced datasets, models and more will be stored.
+```bash
+export BirdMOT_DATA_PATH="/home/jo/fids/birdmot_local_data"
+```
 
 ## Local Data Folder Structure
 ```markdown
@@ -20,10 +37,14 @@ conda env create -f environment.yml
 |    │   │   ├── yolov5_files
 |    ├── models
 ```
+Poetry
+```bash
+poetry lock -vv && poetry install
+```
 
 ## Assemble Dataset
 ```bash
-python -m scripts.assemble_dataset first_mix --coco_annotations_dir /media/data/BirdMOT/local_data/dataset/coco_files --output_path /media/data/BirdMOT/local_data/dataset/coco_files/dataset_assemblies --categories_path /home/fids/fids/BirdMOT/tests/fixtures/coco_fixtures/coco_categories_three_classes.json --config /home/fids/fids/BirdMOT/experiments/val_wo_tracking_dataset.json
+python -m scripts.assemble_dataset first_mix --coco_annotations_dir /media/data/BirdMOT/local_data/dataset/coco_files --output_path /media/data/BirdMOT/local_data/dataset/coco_files/dataset_assemblies --categories_path /home/fids/fids/BirdMOT/tests/fixtures/coco_fixtures/BirdMOT_categories_three_classes.json --config /home/fids/fids/BirdMOT/experiments/dataset_assembly1.json
 ```
 
 ## Tasks

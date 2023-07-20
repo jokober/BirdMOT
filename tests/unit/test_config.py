@@ -1,13 +1,10 @@
-from pathlib import Path
-from unittest.mock import patch
+import os
 
-import pytest
-from _pytest.tmpdir import tmp_path
 from BirdMOT.helper.config import get_local_data_path
-from fixtures.fixtures import local_data_path_fixture
 
 
-@patch('BirdMOT.helper.config.get_local_data_path', side_effect=local_data_path_fixture)
-def test_get_local_data_path(mocker):
+def test_get_local_data_path():
+    os.environ.get("BirdMOT_DATA_PATH")
+
     print(get_local_data_path)
-    assert get_local_data_path() == local_data_path_fixture, "Value should be mocked"
+    assert get_local_data_path() is not None, "BirdMOT_DATA_PATH environment variable not set. Please select a target path, where your data will be stored."
