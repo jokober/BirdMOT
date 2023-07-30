@@ -1,42 +1,7 @@
 {
+  "dataset_assembly_id": "dataset_assembly2_rc_4good_tracks_in_val",
   "experiments": [
         {
-      "model_config": {
-        "epochs": 57,
-        "batch": 31,
-        "model": "yolov8n.pt",
-        "patience": 20,
-        "name": "YOLOv8n+SF+FI+PO",
-        "project": "BirdMOT Yolov8n SAHI",
-        "device": "0",
-        "imgsz": 640,
-        "exist_ok": true
-      },
-      "train_slice_params": {
-        "height": 320,
-        "width": 320,
-        "overlap_height_ratio": 0.1,
-        "overlap_width_ratio": 0.1,
-        "min_area_ratio": 0.1,
-        "ignore_negative_samples": false
-      },
-        "sahi_prediction_params": {
-        "model_confidence_threshold": 0.2 ,
-        "no_standard_prediction": false,
-        "no_sliced_prediction": false ,
-        "slice_height": 320,
-        "slice_width":  320,
-        "overlap_height_ratio": 0.2,
-        "overlap_width_ratio":  0.2,
-        "postprocess_type": "GREEDYNMM",
-        "postprocess_match_metric": "IOS" ,
-        "postprocess_match_threshold":  0.5
-      },
-      "evaluation_config": {
-        "iou_thrs": 0.5
-      }
-    },
-    {
       "model_config": {
         "epochs": 70,
         "batch": 31,
@@ -57,20 +22,57 @@
         "ignore_negative_samples": false
       },
       "sahi_prediction_params": {
-        "model_confidence_threshold": 0.2 ,
+        "model_confidence_threshold": 0.2,
         "no_standard_prediction": false,
-        "no_sliced_prediction": false ,
+        "no_sliced_prediction": false,
         "slice_height": 640,
-        "slice_width":  640,
+        "slice_width": 640,
         "overlap_height_ratio": 0.2,
-        "overlap_width_ratio":  0.2,
-        "postprocess_type": "GREEDYNMM",
-        "postprocess_match_metric": "IOS" ,
-        "postprocess_match_threshold":  0.5
+        "overlap_width_ratio": 0.2,
+        "postprocess_type": "NMS",
+        "postprocess_match_metric": "IOS",
+        "postprocess_match_threshold": 0.2
       },
       "evaluation_config": {
-        "iou_thrs": 0.5
+        "iou_thrs": 0.1
+      }
+    },
+        {
+      "model_config": {
+        "epochs": 57,
+        "batch": 31,
+        "model": "yolov8n.pt",
+        "patience": 20,
+        "name": "YOLOv8n+SF+FI+PO",
+        "project": "BirdMOT Yolov8n SAHI",
+        "device": "0",
+        "imgsz": 640,
+        "exist_ok": true
+      },
+      "train_slice_params": {
+        "height": 320,
+        "width": 320,
+        "overlap_height_ratio": 0.1,
+        "overlap_width_ratio": 0.1,
+        "min_area_ratio": 0.1,
+        "ignore_negative_samples": false
+      },
+      "sahi_prediction_params": {
+        "model_confidence_threshold": 0.2,
+        "no_standard_prediction": false,
+        "no_sliced_prediction": false,
+        "slice_height": 320,
+        "slice_width": 320,
+        "overlap_height_ratio": 0.2,
+        "overlap_width_ratio": 0.2,
+        "postprocess_type": "NMS",
+        "postprocess_match_metric": "IOS",
+        "postprocess_match_threshold": 0.2
+      },
+      "evaluation_config": {
+        "iou_thrs": 0.1
       }
     }
+
   ]
 }

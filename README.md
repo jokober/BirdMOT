@@ -19,6 +19,7 @@ docker compose -f docker-compose.yml run birdmot-gpu
 Set following environment variable to the path of your local data folder. This is where your dataset, sliced datasets, models and more will be stored.
 ```bash
 export BirdMOT_DATA_PATH="/home/jo/fids/birdmot_local_data"
+echo $BirdMOT_DATA_PATH
 ```
 
 ## Local Data Folder Structure
@@ -68,6 +69,8 @@ python -m scripts.assemble_dataset first_mix --coco_annotations_dir /media/data/
 Set the tracking uri to your mlflow server:
 ```bash
 export MLFLOW_TRACKING_URI=http://127.0.0.1:5000
+echo $MLFLOW_TRACKING_URI
+```
 ``
 
 ## Training

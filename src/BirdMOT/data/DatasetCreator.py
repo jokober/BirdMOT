@@ -40,7 +40,6 @@ class DatasetCreator:
         self.predictions_dir: Path = self.local_data_path / 'predictions'
         self.predictions_dir.mkdir(parents=True, exist_ok=True)
 
-
     def createSlicedDataset(self, train_coco_path: Path, val_coco_path: Path, image_dir: Path,
                             slice_params: SliceParams,
                             overwrite_existing: bool = False):
@@ -63,8 +62,6 @@ class DatasetCreator:
             (dataset_path / "yolov5_files").mkdir(parents=True)
             (dataset_path / "images").mkdir(parents=True)
             (dataset_path / "results").mkdir(parents=True)
-
-
 
             train_coco_dict, train_coco_path = slice_dataset(train_coco_path, image_dir=image_dir,
                                                              output_dir=dataset_path,
@@ -92,7 +89,6 @@ class DatasetCreator:
         # Make sure the absolute paths in coco files are correct
         rapair_absolute_image_paths(train_coco_path, sliced_images_dir, overwrite_file=True)
         rapair_absolute_image_paths(val_coco_path, sliced_images_dir, overwrite_file=True)
-
 
         # Check if file indicating successful dataset creation exists
         check_finished = (yolov5_dataset_path / 'dataset_creation_finished.txt').exists()

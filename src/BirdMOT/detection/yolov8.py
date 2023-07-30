@@ -10,6 +10,7 @@ from ultralytics import YOLO
 
 from BirdMOT.data.DatasetCreator import DatasetCreator
 from BirdMOT.data.SliceParams import SliceParams
+from BirdMOT.data.dataset_tools import merge_coco_datasets
 from BirdMOT.detection.SahiPredictionParams import SahiPredictionParams
 
 YOLOV8_PRETRAINED_MODELS = ["YOLOv8n", "YOLOv8s", "YOLOv8m", "YOLOv8l", "YOLOv8x"]
@@ -56,13 +57,12 @@ def train_yolov8(yolo_data_path: Path, yolo_train_params: Yolov8TrainParams):
     model = YOLO(yolo_train_params.model)
 
     # Use the model
-    model.train(data=yolo_data_path.as_posix(), **asdict(yolo_train_params))  # train the model
+    model.train(data=yolo_data_path.as_posix(), flipud=0.5, degrees = 180, **asdict(yolo_train_params))  #  ToDo: Put degrees somewhere else after getting rid of data class
     metrics = model.val()  # evaluate model performance on the validation set
     success = model.export(format="onnx")  # export the model to ONNX format
 
 
-def \
-        sliced_yolov8_train(yolov8_params: Union[dict, Yolov8TrainParams], slice_params: Union[dict, SliceParams],
+def sliced_yolov8_train(yolov8_params: Union[dict, Yolov8TrainParams], slice_params: Union[dict, SliceParams],
                         train_coco_path: Path, val_coco_path: Path, image_dir: Path, device: str = 'cpu'):
     if type(yolov8_params) == dict:
         yolov8_params = Yolov8TrainParams(**yolov8_params)
@@ -76,6 +76,9 @@ def \
                                                                                                     image_dir=image_dir,
                                                                                                     slice_params=slice_params,
                                                                                                     overwrite_existing=True)
+
+    merge_coco_datasets([sliced_train_coco_path, train_coco_path], )
+
     yolov5_dataset_path = DatasetCreator().createYolov5Dataset(dataset_path, sliced_train_coco_path,
                                                                sliced_val_coco_path)
 

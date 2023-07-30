@@ -207,8 +207,11 @@ def rapair_absolute_image_paths(coco_path: Path, image_path: Path, overwrite_fil
         coco_dict = json.load(json_file)
 
     for it in coco_dict['images']:
+        print(f"Old Path: {it['file_name']}")
+
         new_abs_image_path = str(find_correct_image_path(image_path, it["file_name"]))
         it['file_name'] = new_abs_image_path
+        print(f"New Path: {new_abs_image_path}")
 
     if overwrite_file:
         with open(coco_path, 'w') as fp:
@@ -217,7 +220,9 @@ def rapair_absolute_image_paths(coco_path: Path, image_path: Path, overwrite_fil
     return coco_dict
 
 def find_correct_image_path(image_folder_path: Path, old_image_path: str) -> Path:
-    if Path(old_image_path).exists() or not os.path.isabs(old_image_path):
+    if Path(old_image_path).exists():
+            #or not os.path.isabs(old_image_path): # Removed, as it creates problems with relative paths
+        print(f"File exists: {old_image_path}")
         return old_image_path
     else:
         parts = Path(old_image_path).parts
@@ -225,7 +230,13 @@ def find_correct_image_path(image_folder_path: Path, old_image_path: str) -> Pat
             new_image_path = image_folder_path.joinpath(*parts[parts.index('images')+1:])
             assert new_image_path.exists(), f"New image path {new_image_path} does not exist"
             return new_image_path
-        else:
+        elif parts.count('images') < 1:
+            new_image_path = image_folder_path / old_image_path
+            if new_image_path.exists():
+                return new_image_path
+            else:
+                raise AssertionError(f"Tried to generate new path by joining absolute image path with relatice image path. But the resulting path does not exist: {new_image_path}")
+        elif parts.count('images') > 1:
             raise AssertionError(f"There are several 'images' in the path parts of {parts}")
 
 

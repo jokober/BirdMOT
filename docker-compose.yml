@@ -12,7 +12,7 @@ services:
   birdmot-gpu:
     image: jokober/birdmot-gpu:latest
     environment:
-      - BirdMOT_DATA_PATH="/opt/local_data"
+      - BirdMOT_DATA_PATH=/opt/local_data
 
     shm_size: '18gb'
     build:

@@ -1,4 +1,5 @@
 {
+  "dataset_assembly_id": "test_assembly",
   "experiments": [
     {
       "model_config": {

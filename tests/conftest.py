@@ -17,4 +17,6 @@ def env_setup(monkeypatch, local_data_path_fixture):
     monkeypatch.setenv('BirdMOT_DATA_PATH', local_data_path_fixture.as_posix())
 
 def pytest_configure(config):
+    #import mlflow.cli
+    #mlflow.cli.server()
     pass
