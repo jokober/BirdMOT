@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 from pathlib import Path
@@ -14,22 +15,22 @@ config_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'birdnet_config.i
 coco_annotations_fixture_dir = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/annotations')
 primary_coco_annotations_fixture_path = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/annotations' / 'C0085_125820_125828_scalabel_converted_coco_format_track_box.json')
 secondary_coco_annotations_fixture_path = (Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures/annotations' / 'C0085_204724_204728_scalabel_converted_coco_format_track_box.json')
-coco_categories_fixture_path = (Path(__file__).parents[2] / 'config' / 'categories' / 'BirdMOT_categories.json')
+coco_categories_fixture_path = (Path(__file__).parents[2] / 'configs' / 'categories' / 'BirdMOT_categories.json')
 train_coco_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures' / "dataset_assemblies/test_assembly/test_assembly_train.json"
 val_coco_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures' / "dataset_assemblies/test_assembly/test_assembly_val.json"
 
 
 # Images
-coco_images_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures' / 'images'
-primary_coco_images_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'coco_fixtures' / 'images' / 'good_04_2021' / 'C0085_125820_125828'
+coco_images_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'local_data' / 'images'
+primary_coco_images_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'local_data' / 'images' / 'good_04_2021' / 'C0085_125820_125828'
 primary_val_images_path_fixture = coco_images_fixture_path / "good_04_2021" / "C0085_125820_125828"
 
 # Models
-yolov8_test_model = (Path(__file__).parents[1] / 'fixtures' / "models" / "YOLOv8n+FI+PO" / "weights" / "best.pt")
+yolov8_test_model = (Path(__file__).parents[1] / 'fixtures' / "local_data" / "models" / "YOLOv8n+FI+PO" / "weights" / "best.pt")
 
 # Configs
-dataset_config_fixture_path = Path(__file__).parents[1] / 'fixtures/config/dataset_assembly' / 'test_assembly_config.json'
-experiment_config_fixture_path = Path(__file__).parents[1] / 'fixtures/config/experiments' / 'yolov8_sahi.json'
+dataset_config_fixture_path = Path(__file__).parents[1] / 'fixtures/local_data/configs/dataset_assembly' / 'test_assembly_config.json'
+experiment_config_fixture_path = Path(__file__).parents[1] / 'fixtures/local_data/configs/experiments' / 'yolov8_sahi.json'
 
 # Results
 
@@ -65,7 +66,7 @@ def slice_params_fixture():
 
 @pytest.fixture
 def sahi_prediction_params():
-    return SahiPredictionParams(
+    return (SahiPredictionParams(
         model_type = "yolov8",
         model_path = yolov8_test_model.as_posix(),
         model_device="cpu",
@@ -86,5 +87,15 @@ def sahi_prediction_params():
         project = 'Test BirdMOT',
         name = 'test_exp',
         return_dict = True,
+    ))
 
-    )
+@pytest.fixture
+def assembly_configs():
+    with open(dataset_config_fixture_path) as json_file:
+        return json.load(json_file)
+
+
+@pytest.fixture
+def sliced_dataset_configs():
+    with open(experiment_config_fixture_path) as json_file:
+        return json.load(json_file)['experiments'][0]['sliced_datasets']

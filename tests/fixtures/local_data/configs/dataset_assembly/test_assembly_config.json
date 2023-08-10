@@ -1,0 +1,21 @@
+{
+  "dataset_assembly_id": "test_assembly",
+  "coco_formatted_categories": "BirdMOT_categories_single_class.json",
+  "ignore_negative_samples": false,
+  "dataset_config": [
+    {
+      "name": "Low Bitrate Random 06 2023",
+      "coco_annotation_file_path": "C0085_125820_125828_scalabel_converted_coco_format_track_box.json",
+      "image_dir": "",
+      "train_split_rate": 0.8,
+      "negatives_subsample_ratio": 0.2
+    },
+    {
+      "name": "Low Bitrate Negatives 09 2022",
+      "coco_annotation_file_path": "C0085_204724_204728_scalabel_converted_coco_format_track_box.json",
+      "image_dir": "",
+      "train_split_rate": 0.8,
+      "negatives_subsample_ratio": 0.1
+    }
+  ]
+}

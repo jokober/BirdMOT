@@ -6,7 +6,8 @@ from typing import List, Union
 
 from sahi.utils.coco import Coco, CocoVid, CocoVideo, CocoVidImage, CocoVidAnnotation
 from sahi.utils.file import save_json
-from sahi.utils.coco import Coco, export_coco_as_yolov5
+from sahi.utils.coco import Coco
+
 
 def val_train_split(dataset_id: str, coco_path: Path, output_path: Path, train_split_rate: float = 0.85):
     # init Coco object
@@ -169,28 +170,39 @@ def assemble_dataset_from_config(config_path: Path, coco_files_path: Path, outpu
     with open(config_path) as json_file:
         config = json.load(json_file)
 
+    return assemble_dataset()
+
+def assemble_dataset(output_path:Path, assembly_config:dict, coco_files_path:Path, image_path: Path, categories_path:Path):
+    assembly_dir = output_path / assembly_config['hash']
+
     # Create output path
-    if not output_path.exists():
-        output_path.mkdir(parents=True)
+    if assembly_dir.exists():
+        print("Assemble Dataset: Path already exists. Removing Path")
+        shutil.rmtree(assembly_dir)
+    assembly_dir.mkdir(parents=True)
+
+    # Check that dataset names are unique
+    assert len(assembly_config['dataset_config']) == len(set([it['name'] for it in assembly_config['dataset_config']])), \
+        "Dataset names must be unique"
+
+    [absolute_to_relative_image_paths(coco_files_path / dataset['coco_annotation_file_path'],image_path) for dataset in assembly_config['dataset_config']] # ToDo: Remove if all coco files only have relative paths
 
     # Create splits path lists
-    assert len(config['dataset_config']) == len(set([it['name'] for it in config['dataset_config']])), \
-        "Dataset names must be unique"
     train_splits, val_splits = zip(*[val_train_split(dataset_id=dataset['name'].replace(' ', '_'),
                                                      coco_path=coco_files_path / dataset['coco_annotation_file_path'],
                                                      train_split_rate =dataset['train_split_rate'],
-                                                     output_path=output_path / config["dataset_assembly_id"] / "splits")
-                                     for dataset in config['dataset_config']])
+                                                     output_path=assembly_dir/ "splits")
+                                     for dataset in assembly_config['dataset_config']])
     # Create image path list
-    image_paths= [it['image_dir'] if it['image_dir'] != "" else image_path for it in config['dataset_config']]
+    image_paths= [it['image_dir'] if it['image_dir'] != "" else image_path for it in assembly_config['dataset_config']]
 
     # Crate dataset paths for train and val
-    train_dataset_path = output_path / config['dataset_assembly_id'] / f"{config['dataset_assembly_id']}_train.json"
-    val_dataset_path = output_path / config['dataset_assembly_id'] / f"{config['dataset_assembly_id']}_val.json"
+    train_dataset_path = assembly_dir / f"{assembly_config['hash']}_train.json"
+    val_dataset_path = assembly_dir/ f"{assembly_config['hash']}_val.json"
 
     # Split to train and val datasets
-    train_coco: Coco = merge_coco_datasets(train_splits, image_paths, categories_path, train_dataset_path)
-    val_coco: Coco = merge_coco_datasets(val_splits, image_paths, categories_path, val_dataset_path )
+    train_coco: Coco = merge_coco_datasets(train_splits, image_paths, categories_path / assembly_config['coco_formatted_categories'], train_dataset_path)
+    val_coco: Coco = merge_coco_datasets(val_splits, image_paths, categories_path / assembly_config['coco_formatted_categories'], val_dataset_path )
 
     return {
         "train": {
@@ -201,7 +213,8 @@ def assemble_dataset_from_config(config_path: Path, coco_files_path: Path, outpu
             "path": val_dataset_path}
     }
 
-def rapair_absolute_image_paths(coco_path: Path, image_path: Path, overwrite_file = True):
+def rapair_absolute_image_paths(coco_path: Path, image_path: Path, overwrite_file = True): #ToDo: Depricated Remove
+    raise AssertionError("This function is depricated. Use absolute_to_relative_image_paths instead")
     # Go through all image paths in coco file and adjust them to absolute path on disk
     with open(coco_path) as json_file:
         coco_dict = json.load(json_file)
@@ -210,6 +223,7 @@ def rapair_absolute_image_paths(coco_path: Path, image_path: Path, overwrite_fil
         print(f"Old Path: {it['file_name']}")
 
         new_abs_image_path = str(find_correct_image_path(image_path, it["file_name"]))
+        assert new_abs_image_path is not None
         it['file_name'] = new_abs_image_path
         print(f"New Path: {new_abs_image_path}")
 
@@ -219,7 +233,26 @@ def rapair_absolute_image_paths(coco_path: Path, image_path: Path, overwrite_fil
 
     return coco_dict
 
-def find_correct_image_path(image_folder_path: Path, old_image_path: str) -> Path:
+def absolute_to_relative_image_paths(coco_path: Path, image_path: Path, overwrite_file = True): #ToDo: Depricated Remove
+    # Go through all image paths in coco file and adjust them to absolute path on disk
+    with open(coco_path) as json_file:
+        coco_dict = json.load(json_file)
+
+    for it in coco_dict['images']:
+        print(f"Old Path: {it['file_name']}")
+
+        new_abs_image_path = str(find_relative_image_path(image_path, it["file_name"]))
+        it['file_name'] = new_abs_image_path
+        print(f"New Path: {new_abs_image_path}")
+
+    if overwrite_file:
+        with open(coco_path, 'w') as fp:
+            json.dump(coco_dict, fp)
+
+    return coco_dict
+
+
+def find_correct_image_path(image_folder_path: Path, old_image_path: str) -> Path: # ToDo: Depricated Remove
     if Path(old_image_path).exists():
             #or not os.path.isabs(old_image_path): # Removed, as it creates problems with relative paths
         print(f"File exists: {old_image_path}")
@@ -239,4 +272,27 @@ def find_correct_image_path(image_folder_path: Path, old_image_path: str) -> Pat
         elif parts.count('images') > 1:
             raise AssertionError(f"There are several 'images' in the path parts of {parts}")
 
+def find_relative_image_path(image_folder_path: Path, old_image_path: str) -> Path: # ToDo: Depricated Remove
+    parts = Path(old_image_path).parts
+    if parts.count('images')==1:
+        new_image_path = '/'.join(parts[parts.index('images')+1:])
+
+    elif parts.count('images') < 1:
+        print(f"Already relative? {old_image_path}")
+        print(parts)
+        new_image_path = old_image_path
+
+    elif parts.count('images') > 1:
+        raise AssertionError(f"There are several 'images' in the path parts of {parts}")
+
+    assert new_image_path is not None
+
+    try:
+        assert (image_folder_path / new_image_path).exists(), f"New image path {(image_folder_path / new_image_path)} does not exist"
+    except AssertionError:
+        print(f"Assertion: New image path {new_image_path} does not exist")
+        print(f"Assertion: Old image path {old_image_path}")
+        print(f"Assertion: Image folder path {image_folder_path}")
+        raise AssertionError(f"New image path {(image_folder_path / new_image_path)} does not exist")
+    return new_image_path
 
