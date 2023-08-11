@@ -169,6 +169,8 @@ def test_plausibility_of_image_counts(assembly_configs, sliced_dataset_configs):
         with open(sliced_dataset['data']['val']['path'].as_posix()) as json_file:
             slices_per_image.append(len(json.load(json_file)['images']) / number_of_val_images_in_assembly)
 
+    # Comparing and testing expected_image_count_in_train_fine_tuning with actual number_of_train_images_in_fine_tuning
+    # only works if negative samples are not ignored
     expected_image_count_in_val_fine_tuning = sum([sl_per_image*number_of_val_images_in_assembly for sl_per_image in slices_per_image])
     expected_image_count_in_train_fine_tuning = sum([sl_per_image*number_of_train_images_in_assembly for sl_per_image in slices_per_image])
 
@@ -193,3 +195,25 @@ def test_plausibility_of_image_counts(assembly_configs, sliced_dataset_configs):
     for files in types:
         files_grabbed.extend((returned_yolov5_fine_tuning_dataset["data_yml_path"].parent / "val").glob(files))
     assert len(files_grabbed) == number_of_val_images_in_fine_tuning, "There should be as many images in the folder yolov val folder as in the val dataset"
+
+
+def test_negatives_handling_plausability(assembly_configs, sliced_dataset_configs):
+    # Check counts in assembly
+    dataset_creator = DatasetCreator()
+    returned_fine_tuning_dataset = dataset_creator.find_or_create_fine_tuning_dataset(assembly_configs,
+                                                                                      sliced_dataset_configs)
+
+    assembly_configs['ignore_negative_samples'] = True
+    returned_fine_tuning_dataset_wo_negatives = dataset_creator.find_or_create_fine_tuning_dataset(assembly_configs, sliced_dataset_configs)
+
+    with open(returned_fine_tuning_dataset['data']['train']['path'].as_posix()) as json_file:
+        number_of_train_images_in_fine_tuning=len(json.load(json_file)['images'])
+    with open(returned_fine_tuning_dataset['data']['val']['path'].as_posix()) as json_file:
+        number_of_val_images_in_fine_tuning=len(json.load(json_file)['images'])
+
+    with open(returned_fine_tuning_dataset_wo_negatives['data']['train']['path'].as_posix()) as json_file:
+        number_of_train_images_in_fine_tuning_wo_neg=len(json.load(json_file)['images'])
+    with open(returned_fine_tuning_dataset_wo_negatives['data']['val']['path'].as_posix()) as json_file:
+        number_of_val_images_in_fine_tuning_wo_neg=len(json.load(json_file)['images'])
+
+    assert number_of_train_images_in_fine_tuning + number_of_val_images_in_fine_tuning > number_of_train_images_in_fine_tuning_wo_neg + number_of_val_images_in_fine_tuning_wo_neg

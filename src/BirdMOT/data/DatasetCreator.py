@@ -127,13 +127,14 @@ class DatasetCreator:
 
         if sliced_dataset_hash not in [sliced_dat["hash"] for sliced_dat in self.state['sliced_datasets']]:
             print("Sliced Dataset hash not found in existing assemblies. Creating new sliced dataset.")
+            print(self.images_dir)
             one_sliced_dataset_config["data"] = {}
             for split in ("train", "val"):
                 coco_dict, coco_path = slice_coco(
                     coco_annotation_file_path=dataset_assembly['data'][split]['path'].as_posix(),
                     image_dir=self.images_dir.as_posix(),
                     output_coco_annotation_file_name=f"sliced_{split}",
-                    ignore_negative_samples=dataset_assembly['ignore_negative_samples'],
+                    ignore_negative_samples=assembly_config['ignore_negative_samples'],
                     output_dir=(self.sliced_datasets_dir / sliced_dataset_hash).as_posix(),
                     slice_height=one_sliced_dataset_config['height'],
                     slice_width=one_sliced_dataset_config['width'],
@@ -142,10 +143,29 @@ class DatasetCreator:
                     min_area_ratio=one_sliced_dataset_config['min_area_ratio'],
                     verbose=False,
                 )
+                # Merge negative samples with sliced dataset
+                if assembly_config['ignore_negative_samples'] == True:
+                    neg_coco_dict, neg_coco_path = slice_coco(
+                        coco_annotation_file_path=dataset_assembly['data']['negatives_' + split]['path'].as_posix(),
+                        image_dir=self.images_dir.as_posix(),
+                        output_coco_annotation_file_name=f"negatives_sliced_{split}",
+                        ignore_negative_samples=False,
+                        output_dir=(self.sliced_datasets_dir / sliced_dataset_hash).as_posix(),
+                        slice_height=one_sliced_dataset_config['height'],
+                        slice_width=one_sliced_dataset_config['width'],
+                        overlap_height_ratio=one_sliced_dataset_config['overlap_height_ratio'],
+                        overlap_width_ratio=one_sliced_dataset_config['overlap_width_ratio'],
+                        min_area_ratio=one_sliced_dataset_config['min_area_ratio'],
+                        verbose=False,
+                    )
+                    merge_coco_datasets([coco_path, neg_coco_path], self.sliced_datasets_dir / sliced_dataset_hash, self.coco_categories_path / assembly_config[
+                                                      'coco_formatted_categories'], coco_path)
+
                 one_sliced_dataset_config["data"][split] = {
                     "path": coco_path,
                     "dict": coco_dict,
                 }
+
 
             one_sliced_dataset_config["hash"] = sliced_dataset_hash
             self.update_state(type="append", key='sliced_datasets', value=one_sliced_dataset_config)
