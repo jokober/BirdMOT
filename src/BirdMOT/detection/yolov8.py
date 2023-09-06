@@ -2,6 +2,7 @@ from argparse import ArgumentParser
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Union
+from ultralytics.yolo.utils import RANK
 
 import mlflow
 from sahi.predict import predict
@@ -64,12 +65,19 @@ def train_yolov8_2(yolo_data_path: Path, yolo_train_params: dict): #ToDo: New ve
     # Load a model
     model = YOLO(yolo_train_params['model'])
 
+    #import torch
+    #assert torch.cuda.is_available()
+    #torch.distributed.init_process_group()
+
     # Use the model
     model.train(data=yolo_data_path.as_posix(), flipud=0.5, degrees = 180, **yolo_train_params)  #  ToDo: Put degrees somewhere else after getting rid of data class
-    return model.val()  # evaluate model performance on the validation set
+    if RANK in (0, -1):
+        results = model.val()
+    return results  # evaluate model performance on the validation set
 
 def sliced_yolov8_train_2(assembly_configs, sliced_dataset_configs, yolo_train_params:dict,  device: str = 'cpu'):
     dataset_creator = DatasetCreator()
+    yolo_train_params["device"]=device
     yolov5_fine_tune_dataset = dataset_creator.find_or_create_yolov5_dataset(assembly_configs, sliced_dataset_configs)
 
     # Train the model

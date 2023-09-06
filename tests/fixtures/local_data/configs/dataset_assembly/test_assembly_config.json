@@ -3,6 +3,7 @@
   "coco_formatted_categories": "BirdMOT_categories_single_class.json",
   "ignore_negative_samples": false,
   "negatives_split_ratio": 0.8,
+  "max_negatives_ratio": 10,
   "dataset_config": [
     {
       "name": "Low Bitrate Random 06 2023",

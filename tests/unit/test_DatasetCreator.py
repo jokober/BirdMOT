@@ -178,7 +178,7 @@ def test_plausibility_of_image_counts(assembly_configs, sliced_dataset_configs):
     assert number_of_val_images_in_fine_tuning == expected_image_count_in_val_fine_tuning
 
 
-    types = ('**/*.png', '**/*.jpg')
+    types = ('*.png', '*.jpg')
     files_grabbed = []
     for files in types:
         files_grabbed.extend(returned_fine_tuning_dataset["data"]["train"]["path"].parent.glob(files))

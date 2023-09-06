@@ -6,8 +6,10 @@ from pathlib import Path
 
 from sahi.slicing import slice_coco
 from sahi.utils.coco import Coco, export_coco_as_yolov5
+from sahi.utils.file import save_json
 
 from BirdMOT.data import SliceParams
+from BirdMOT.data.dataset_stats import calculate_dataset_stats
 from BirdMOT.data.dataset_tools import rapair_absolute_image_paths, assemble_dataset_from_config, assemble_dataset, \
     merge_coco_datasets
 from BirdMOT.helper.config import get_local_data_path
@@ -109,6 +111,12 @@ class DatasetCreator:
                                                         categories_path=self.coco_categories_path)
             del dataset_assembly_results['train']['coco']  # ToDo: Implement if needed
             del dataset_assembly_results['val']['coco']  # ToDo: Implement if needed
+
+            calculate_dataset_stats(dataset_assembly_results['train']['path'],
+                                    self.tmp_assemblies_path / assembly_hash / "stats" / 'train')
+            calculate_dataset_stats(dataset_assembly_results['val']['path'],
+                                    self.tmp_assemblies_path / assembly_hash / "stats" / 'val')
+
             assembly_config['data'] = dataset_assembly_results
             self.update_state(type="append", key='assemblies', value=assembly_config)
 
@@ -158,14 +166,16 @@ class DatasetCreator:
                         min_area_ratio=one_sliced_dataset_config['min_area_ratio'],
                         verbose=False,
                     )
-                    merge_coco_datasets([coco_path, neg_coco_path], self.sliced_datasets_dir / sliced_dataset_hash, self.coco_categories_path / assembly_config[
-                                                      'coco_formatted_categories'], coco_path)
+                    merge_coco_datasets([coco_path, neg_coco_path], self.sliced_datasets_dir / sliced_dataset_hash,
+                                        self.coco_categories_path / assembly_config[
+                                            'coco_formatted_categories'], coco_path)
+
+                calculate_dataset_stats(coco_path, self.sliced_datasets_dir / sliced_dataset_hash / "stats" / split)
 
                 one_sliced_dataset_config["data"][split] = {
                     "path": coco_path,
                     "dict": coco_dict,
                 }
-
 
             one_sliced_dataset_config["hash"] = sliced_dataset_hash
             self.update_state(type="append", key='sliced_datasets', value=one_sliced_dataset_config)
@@ -207,7 +217,7 @@ class DatasetCreator:
 
             # Create symlinks to sliced datasets images
             for one_sliced_dataset in sliced_datasets:
-                types = ('**/*.png', '**/*.jpg')
+                types = ('*.png', '*.jpg')
                 files_grabbed = []
                 for files in types:
                     files_grabbed.extend(one_sliced_dataset["data"]["train"]["path"].parent.glob(files))
@@ -225,10 +235,23 @@ class DatasetCreator:
                                                   categories=self.coco_categories_path / assembly_config[
                                                       'coco_formatted_categories'],
                                                   output_path=dataset_path / f"{split}.json")
+
+                coco_path = dataset_path / f"{split}.json"
+
+                if assembly_config['ignore_negative_samples']:
+                    # Subsample in order to limit amount of negative images
+                    subsampled_coco = merged_coco.get_subsampled_coco(subsample_ratio=assembly_config['max_negatives_ratio'], category_id=-1)
+                    save_json(subsampled_coco.json, coco_path.as_posix())
+                    fine_tuning_coco= subsampled_coco
+                else:
+                    fine_tuning_coco = merged_coco
+
                 fine_tuning_dataset['data'][split] = {
-                    "path": dataset_path / f"{split}.json",
-                    "coco": merged_coco,
+                    "path": coco_path,
+                    "coco": fine_tuning_coco,
                 }
+
+                calculate_dataset_stats(coco_path, dataset_path / "stats" / split)
 
             self.update_state(type="append", key='fine_tuning_datasets', value=fine_tuning_dataset)
             return fine_tuning_dataset.copy()

@@ -52,7 +52,7 @@ def evaluate_coco_from_config(experiment_configs: Union[Path, Dict], coco_path: 
         with open(experiment_configs) as exp_file:
             experiment_configs = json.load(exp_file)
 
-    rapair_absolute_image_paths(coco_path, DatasetCreator().images_dir, overwrite_file=True)
+#    rapair_absolute_image_paths(coco_path, DatasetCreator().images_dir, overwrite_file=True)
 
     coco, pred_coco_path , source = generate_prediction_folder_with_coco_file(dataset_assembly_id= experiment_configs['dataset_assembly_id'], coco_path= coco_path, image_path= DatasetCreator().images_dir,)
 

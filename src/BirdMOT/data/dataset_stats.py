@@ -1,6 +1,7 @@
 import json
 import math
 from argparse import ArgumentParser
+from copy import deepcopy
 from pathlib import Path
 
 from prettytable import PrettyTable
@@ -8,8 +9,6 @@ import numpy as np
 import plotly.express as px
 from plotly.offline import iplot
 from sahi.utils.coco import Coco
-
-from BirdMOT.data.DatasetCreator import DatasetCreator
 
 
 def get_basic_dataset_tracking_stats(coco_path: Path, ) -> dict:
@@ -132,13 +131,17 @@ def create_bbox_size_histogram(coco: Coco, save_path: Path, end = 1000):
 
 def calculate_dataset_stats(coco_path: Path, save_path: Path):
     print(save_path.as_posix())
+    if not save_path.exists():
+        print("Dataset Stats save path does not exist. Creating folder")
+        save_path.mkdir(parents=True, exist_ok=True)
+    assert save_path.is_dir()
+
     coco = Coco.from_coco_dict_or_path(coco_path.as_posix())
     create_bbox_size_histogram(coco, save_path)
     stats_dict = get_basic_dataset_detection_stats(coco)
     #stats_dict.update(get_basic_dataset_tracking_stats(coco_path))
 
     save_stats_table(stats_dict, save_path)
-
     return stats_dict
 
 def datasets_stats_from_config(config):
@@ -149,6 +152,7 @@ def datasets_stats_from_config(config):
     for dataset in config['dataset_config']:
 
         coco_path = Path(dataset['coco_annotation_file_path'])
+        from BirdMOT.data.DatasetCreator import DatasetCreator
         datasets_stats.append(
             {
                 'name': dataset['name'],
@@ -166,7 +170,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.coco_path:
-        calculate_dataset_stats(Path(args.coco_path), DatasetCreator().dataset_stats_dir)
+        #calculate_dataset_stats(Path(args.coco_path), DatasetCreator().dataset_stats_dir)
+        pass
     elif args.config:
         datasets_stats_from_config(args.config)
 
