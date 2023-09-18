@@ -1,15 +1,16 @@
 import json
+import shutil
 from pathlib import Path
-
-from deepdiff import DeepHash, DeepDiff
 
 from BirdMOT.data.DatasetCreator import DatasetCreator
 from fixtures.fixtures import assembly_configs, sliced_dataset_configs
-from conftest import local_data_path_fixture
 
 
-def test_find_or_create_dataset_assembly(assembly_configs, local_data_path_fixture):
+def test_find_or_create_dataset_assembly(assembly_configs):
     dataset_creator = DatasetCreator()
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_train_dir' / 'tmp_train_state.pkl', ignore_errors=True)
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_eval_dir', ignore_errors=True)
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_dir', ignore_errors=True)
 
     assert len(dataset_creator.state['assemblies']) == 0, "There should be no assemblies in the state"
 
@@ -34,6 +35,10 @@ def test_find_or_create_dataset_assembly(assembly_configs, local_data_path_fixtu
 
 def test_find_or_create_sliced_dataset(assembly_configs,
                                        sliced_dataset_configs):
+    dataset_creator = DatasetCreator()
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_train_dir' / 'tmp_train_state.pkl', ignore_errors=True)
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_eval_dir', ignore_errors=True)
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_dir', ignore_errors=True)
     dataset_creator = DatasetCreator()
 
     assert len(dataset_creator.state['sliced_datasets']) == 0, "There should be no sliced_datasets in the state"
@@ -73,6 +78,9 @@ def test_find_or_create_sliced_dataset(assembly_configs,
 
 def test_find_or_create_fine_tuning_dataset(assembly_configs, sliced_dataset_configs):
     dataset_creator = DatasetCreator()
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_train_dir' / 'tmp_train_state.pkl', ignore_errors=True)
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_eval_dir', ignore_errors=True)
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_dir', ignore_errors=True)
 
     assert len(
         dataset_creator.state['fine_tuning_datasets']) == 0, "There should be no fine_tuning_dataset in the state"
@@ -88,7 +96,8 @@ def test_find_or_create_fine_tuning_dataset(assembly_configs, sliced_dataset_con
     returned_fine_tuning_dataset2 = dataset_creator.find_or_create_fine_tuning_dataset(assembly_configs,
                                                                                        sliced_dataset_configs)
 
-    assert len(dataset_creator.state['fine_tuning_datasets']) == 1, "There should still be only one fine_tuning_dataset in the state"
+    assert len(dataset_creator.state[
+                   'fine_tuning_datasets']) == 1, "There should still be only one fine_tuning_dataset in the state"
 
     assembly_config2 = assembly_configs
     assembly_config2["dataset_config"][1]["train_split_rate"] = 0.2
@@ -108,59 +117,75 @@ def test_find_or_create_fine_tuning_dataset(assembly_configs, sliced_dataset_con
     assert returned_fine_tuning_dataset3['data']['train']['path'].exists()
     assert returned_fine_tuning_dataset3['data']['val']['path'].exists()
 
+
 def test_find_or_create_yolov5_fine_tuning_dataset(assembly_configs, sliced_dataset_configs):
     dataset_creator = DatasetCreator()
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_train_dir' / 'tmp_train_state.pkl', ignore_errors=True)
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_eval_dir', ignore_errors=True)
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_dir', ignore_errors=True)
 
     assert len(
-        dataset_creator.state['yolov5_fine_tuning_datasets']) == 0, "There should be no fine_tuning_dataset in the state"
+        dataset_creator.state[
+            'yolov5_fine_tuning_datasets']) == 0, "There should be no fine_tuning_dataset in the state"
 
     returned_yolov5_fine_tuning_dataset = dataset_creator.find_or_create_yolov5_dataset(assembly_configs,
-                                                                                      sliced_dataset_configs)
+                                                                                        sliced_dataset_configs)
     assert 'fine_tuning_dataset_hash' in returned_yolov5_fine_tuning_dataset, "The returned yolov5_fine_tuning_dataset should have a fine_tuning_dataset_hash"
-    assert returned_yolov5_fine_tuning_dataset['fine_tuning_dataset_hash'] in [one_yolov5_fine_tuning_dataset['fine_tuning_dataset_hash'] for one_yolov5_fine_tuning_dataset in
-                                                    dataset_creator.state[
-                                                        'yolov5_fine_tuning_datasets']], "The returned yolov5_fine_tuning_datasets should be in the state"
+    assert returned_yolov5_fine_tuning_dataset['fine_tuning_dataset_hash'] in [
+        one_yolov5_fine_tuning_dataset['fine_tuning_dataset_hash'] for one_yolov5_fine_tuning_dataset in
+        dataset_creator.state[
+            'yolov5_fine_tuning_datasets']], "The returned yolov5_fine_tuning_datasets should be in the state"
     assert len(dataset_creator.state['yolov5_fine_tuning_datasets']) == 1
 
     returned_yolov5_fine_tuning_dataset2 = dataset_creator.find_or_create_yolov5_dataset(assembly_configs,
-                                                                                       sliced_dataset_configs)
+                                                                                         sliced_dataset_configs)
 
-    assert len(dataset_creator.state['yolov5_fine_tuning_datasets']) == 1, "There should still be only one yolov5_fine_tuning_datasets in the state"
+    assert len(dataset_creator.state[
+                   'yolov5_fine_tuning_datasets']) == 1, "There should still be only one yolov5_fine_tuning_datasets in the state"
 
     assembly_config2 = assembly_configs
     assembly_config2["dataset_config"][1]["train_split_rate"] = 0.2
 
     returned_yolov5_fine_tuning_dataset3 = dataset_creator.find_or_create_yolov5_dataset(assembly_config2,
-                                                                                       sliced_dataset_configs)
-    assert returned_yolov5_fine_tuning_dataset3['fine_tuning_dataset_hash'] in [one_yolov5_fine_tuning_dataset['fine_tuning_dataset_hash'] for one_yolov5_fine_tuning_dataset in
-                                                     dataset_creator.state[
-                                                         'yolov5_fine_tuning_datasets']], "The returned yolov5_fine_tuning_dataset should be in the state"
+                                                                                         sliced_dataset_configs)
+    assert returned_yolov5_fine_tuning_dataset3['fine_tuning_dataset_hash'] in [
+        one_yolov5_fine_tuning_dataset['fine_tuning_dataset_hash'] for one_yolov5_fine_tuning_dataset in
+        dataset_creator.state[
+            'yolov5_fine_tuning_datasets']], "The returned yolov5_fine_tuning_dataset should be in the state"
     assert len(
-        dataset_creator.state['yolov5_fine_tuning_datasets']) == 2, "There should be two yolov5_fine_tuning_datasets in the state"
+        dataset_creator.state[
+            'yolov5_fine_tuning_datasets']) == 2, "There should be two yolov5_fine_tuning_datasets in the state"
 
     assert returned_yolov5_fine_tuning_dataset['data_yml_path'].exists()
     assert returned_yolov5_fine_tuning_dataset2['data_yml_path'].exists()
     assert returned_yolov5_fine_tuning_dataset3['data_yml_path'].exists()
 
+
 def test_plausibility_of_image_counts(assembly_configs, sliced_dataset_configs):
     # Check counts in assembly
     dataset_creator = DatasetCreator()
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_train_dir' / 'tmp_train_state.pkl', ignore_errors=True)
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_eval_dir', ignore_errors=True)
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_dir', ignore_errors=True)
+    dataset_creator = DatasetCreator()
+
     returned_assembly = dataset_creator.find_or_create_dataset_assembly(assembly_configs)
 
     with open(returned_assembly['data']['train']['path'].as_posix()) as json_file:
-        number_of_train_images_in_assembly=len(json.load(json_file)['images'])
+        number_of_train_images_in_assembly = len(json.load(json_file)['images'])
     with open(returned_assembly['data']['val']['path'].as_posix()) as json_file:
-        number_of_val_images_in_assembly=len(json.load(json_file)['images'])
+        number_of_val_images_in_assembly = len(json.load(json_file)['images'])
     assert number_of_train_images_in_assembly + number_of_val_images_in_assembly == 14, "There should be 14 images in the assembly. According to the Test data"
     assert number_of_train_images_in_assembly > number_of_val_images_in_assembly, "There should be more train images"
 
     # Check counts in sliced dataset and fine tuning dataset
-    returned_fine_tuning_dataset = dataset_creator.find_or_create_fine_tuning_dataset(assembly_configs, sliced_dataset_configs)
+    returned_fine_tuning_dataset = dataset_creator.find_or_create_fine_tuning_dataset(assembly_configs,
+                                                                                      sliced_dataset_configs)
 
     with open(returned_fine_tuning_dataset['data']['train']['path'].as_posix()) as json_file:
-        number_of_train_images_in_fine_tuning=len(json.load(json_file)['images'])
+        number_of_train_images_in_fine_tuning = len(json.load(json_file)['images'])
     with open(returned_fine_tuning_dataset['data']['val']['path'].as_posix()) as json_file:
-        number_of_val_images_in_fine_tuning=len(json.load(json_file)['images'])
+        number_of_val_images_in_fine_tuning = len(json.load(json_file)['images'])
     assert number_of_train_images_in_fine_tuning > number_of_val_images_in_fine_tuning, "There should be more train images than val images in the fine tuning dataset"
 
     # Get Slices per image for each slice config
@@ -171,49 +196,58 @@ def test_plausibility_of_image_counts(assembly_configs, sliced_dataset_configs):
 
     # Comparing and testing expected_image_count_in_train_fine_tuning with actual number_of_train_images_in_fine_tuning
     # only works if negative samples are not ignored
-    expected_image_count_in_val_fine_tuning = sum([sl_per_image*number_of_val_images_in_assembly for sl_per_image in slices_per_image])
-    expected_image_count_in_train_fine_tuning = sum([sl_per_image*number_of_train_images_in_assembly for sl_per_image in slices_per_image])
+    expected_image_count_in_val_fine_tuning = sum(
+        [sl_per_image * number_of_val_images_in_assembly for sl_per_image in slices_per_image])
+    expected_image_count_in_train_fine_tuning = sum(
+        [sl_per_image * number_of_train_images_in_assembly for sl_per_image in slices_per_image])
 
     assert number_of_train_images_in_fine_tuning == expected_image_count_in_train_fine_tuning
     assert number_of_val_images_in_fine_tuning == expected_image_count_in_val_fine_tuning
-
 
     types = ('*.png', '*.jpg')
     files_grabbed = []
     for files in types:
         files_grabbed.extend(returned_fine_tuning_dataset["data"]["train"]["path"].parent.glob(files))
-    assert len(files_grabbed) == number_of_train_images_in_fine_tuning+number_of_val_images_in_fine_tuning, "There should be as many images in the folder fine tuning folder as in the train and val dataset combined"
+    assert len(
+        files_grabbed) == number_of_train_images_in_fine_tuning + number_of_val_images_in_fine_tuning, "There should be as many images in the folder fine tuning folder as in the train and val dataset combined"
 
     # Check counts in yolov dataset
     returned_yolov5_fine_tuning_dataset = dataset_creator.find_or_create_yolov5_dataset(assembly_configs,
-                                                                                      sliced_dataset_configs)
+                                                                                        sliced_dataset_configs)
     files_grabbed = []
     for files in types:
         files_grabbed.extend((returned_yolov5_fine_tuning_dataset["data_yml_path"].parent / "train").glob(files))
-    assert len(files_grabbed) == number_of_train_images_in_fine_tuning, "There should be as many images in the folder yolov train folder as in the train dataset"
+    assert len(
+        files_grabbed) == number_of_train_images_in_fine_tuning, "There should be as many images in the folder yolov train folder as in the train dataset"
     files_grabbed = []
     for files in types:
         files_grabbed.extend((returned_yolov5_fine_tuning_dataset["data_yml_path"].parent / "val").glob(files))
-    assert len(files_grabbed) == number_of_val_images_in_fine_tuning, "There should be as many images in the folder yolov val folder as in the val dataset"
+    assert len(
+        files_grabbed) == number_of_val_images_in_fine_tuning, "There should be as many images in the folder yolov val folder as in the val dataset"
 
 
 def test_negatives_handling_plausability(assembly_configs, sliced_dataset_configs):
-    # Check counts in assembly
     dataset_creator = DatasetCreator()
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_train_dir' / 'tmp_train_state.pkl', ignore_errors=True)
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_eval_dir', ignore_errors=True)
+    shutil.rmtree(dataset_creator.tmp_dir_path.parent / 'tmp_dir', ignore_errors=True)
+    dataset_creator = DatasetCreator()
+
     returned_fine_tuning_dataset = dataset_creator.find_or_create_fine_tuning_dataset(assembly_configs,
                                                                                       sliced_dataset_configs)
 
     assembly_configs['ignore_negative_samples'] = True
-    returned_fine_tuning_dataset_wo_negatives = dataset_creator.find_or_create_fine_tuning_dataset(assembly_configs, sliced_dataset_configs)
+    returned_fine_tuning_dataset_wo_negatives = dataset_creator.find_or_create_fine_tuning_dataset(assembly_configs,
+                                                                                                   sliced_dataset_configs)
 
     with open(returned_fine_tuning_dataset['data']['train']['path'].as_posix()) as json_file:
-        number_of_train_images_in_fine_tuning=len(json.load(json_file)['images'])
+        number_of_train_images_in_fine_tuning = len(json.load(json_file)['images'])
     with open(returned_fine_tuning_dataset['data']['val']['path'].as_posix()) as json_file:
-        number_of_val_images_in_fine_tuning=len(json.load(json_file)['images'])
+        number_of_val_images_in_fine_tuning = len(json.load(json_file)['images'])
 
     with open(returned_fine_tuning_dataset_wo_negatives['data']['train']['path'].as_posix()) as json_file:
-        number_of_train_images_in_fine_tuning_wo_neg=len(json.load(json_file)['images'])
+        number_of_train_images_in_fine_tuning_wo_neg = len(json.load(json_file)['images'])
     with open(returned_fine_tuning_dataset_wo_negatives['data']['val']['path'].as_posix()) as json_file:
-        number_of_val_images_in_fine_tuning_wo_neg=len(json.load(json_file)['images'])
+        number_of_val_images_in_fine_tuning_wo_neg = len(json.load(json_file)['images'])
 
     assert number_of_train_images_in_fine_tuning + number_of_val_images_in_fine_tuning > number_of_train_images_in_fine_tuning_wo_neg + number_of_val_images_in_fine_tuning_wo_neg

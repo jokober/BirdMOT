@@ -1,0 +1,52 @@
+[tool.poetry]
+name = "BirdMot"
+version = "0.1.0"
+description = ""
+authors = ["jokoko"]
+readme = "README.md"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+packages = [{include = "BirdMOT", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.9.0"
+trackeval = {git = "https://github.com/JonathonLuiten/TrackEval.git"}
+strongsort = "*"
+numpy = "^1.23.0"
+loguru = "^0.6.0"
+filterpy = "^1.4.5"
+sahi = { git = "https://github.com/jokober/sahi.git", branch = "sahi_for_BirdMOT" }
+coverage = "^7.2.3"
+pytest = "^7.3.1"
+Pillow = "^10.0.0"
+pycocotools = "*"
+plotly = "*"
+mmdet = "^3.0.0"
+mmcv-full = "^1.7.1"
+ultralytics = "^8"
+pytest-mock = "^3.10.0"
+ray = {extras = ["tune"], version = "^2.6.1"}
+prettytable = "^3.7.0"
+mlflow = "^2.3.2"
+scikit-image = "^0.21.0"
+imagecodecs = "^2023.7.4"
+deepdiff = "^6.3.1"
+blinker = "^1.6.2"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.3.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = [
+    "tests",
+]

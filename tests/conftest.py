@@ -11,7 +11,6 @@ def local_data_path_fixture(tmp_path_factory):
     shutil.copytree((Path(__file__).parents[0] / 'fixtures' / "local_data" ), Path(fn), dirs_exist_ok=True)
     return fn
 
-
 @pytest.fixture(autouse=True)
 def env_setup(monkeypatch, local_data_path_fixture):
     monkeypatch.setenv('BirdMOT_DATA_PATH', local_data_path_fixture.as_posix())

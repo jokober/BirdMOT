@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import List
 
 import mlflow
 
@@ -16,11 +17,10 @@ def flatten(dictionary, parent_key='', separator='_'):
             items.append((new_key, value))
     return dict(items)
 
-def log_evaluation(experiment, params: dict, results: dict, results_path:Path):
+def log_evaluation(experiment, params: dict, results: dict, artifact_paths:List[Path]):
 
 
     mlflow.set_experiment(experiment)
-
     flattened_params = flatten(params)
     flattened_results = flatten(results)
     #flattened_results.pop('results_per_category_bbox_bird_mAP50_m')
@@ -28,12 +28,17 @@ def log_evaluation(experiment, params: dict, results: dict, results_path:Path):
         flattened_results.pop('bbox_mAP_copypaste')
     except:
         print("Warning: key 'bbox_mAP_copypaste' not found in results.")
+    #print(f" {}")
+    print(f"flattened_results {flattened_results}")
     flattened_results = {key: float(value) for key, value in flattened_results.items()}
 
     print(f'params {json.dumps(flattened_params)}')
     print(f'results {json.dumps(flattened_results)}')
 
+
     with mlflow.start_run():
         mlflow.log_params(flattened_params)
         mlflow.log_metrics(flattened_results)
-        mlflow.log_artifacts(results_path.as_posix())
+
+        for one_artifact_path in artifact_paths:
+            mlflow.log_artifacts(one_artifact_path)

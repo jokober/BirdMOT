@@ -65,7 +65,8 @@ def save_stats_table(stats_dict, save_path):
         x.add_row(["Num Tracking instances", f"{stats_dict['num_instances']}"])
 
     with open(save_path / 'basic_dataset_stats.txt', 'w') as w:
-        w.write(x.get_string())
+        table_string = x.get_string()
+        w.write(table_string)
 
     with open(save_path / 'basic_dataset_stats.tex', 'w') as w:
         w.write(x.get_latex_string())

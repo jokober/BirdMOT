@@ -1,20 +1,16 @@
-import glob
 import pickle
-import shutil
 from copy import deepcopy
 from pathlib import Path
 
+from deepdiff import DeepHash
 from sahi.slicing import slice_coco
-from sahi.utils.coco import Coco, export_coco_as_yolov5
+from sahi.utils.coco import export_coco_as_yolov5
 from sahi.utils.file import save_json
 
-from BirdMOT.data import SliceParams
 from BirdMOT.data.dataset_stats import calculate_dataset_stats
-from BirdMOT.data.dataset_tools import rapair_absolute_image_paths, assemble_dataset_from_config, assemble_dataset, \
+from BirdMOT.data.dataset_tools import assemble_dataset, \
     merge_coco_datasets
 from BirdMOT.helper.config import get_local_data_path
-
-from deepdiff import DeepHash
 
 
 class DatasetCreator:
@@ -100,6 +96,7 @@ class DatasetCreator:
         assembly_config = deepcopy(assembly_config)
         assembly_hash = DeepHash(assembly_config)[assembly_config]
 
+
         if assembly_hash not in [ass_conf["hash"] for ass_conf in self.state['assemblies']]:
             print("Assembly hash not found in existing assemblies. Creating new dataset assembly.")
             assembly_config['hash'] = assembly_hash
@@ -131,7 +128,16 @@ class DatasetCreator:
 
         dataset_assembly = self.find_or_create_dataset_assembly(assembly_config)
         one_sliced_dataset_config["assembly_hash"] = dataset_assembly["hash"]
-        sliced_dataset_hash = DeepHash(one_sliced_dataset_config)[one_sliced_dataset_config]
+
+        deephash_exclude_paths=[
+            "root['one_experiment_config']['model_config']",
+            "root['one_experiment_config']['sahi_prediction_params']",
+            "root['one_experiment_config']['evaluation_config']",
+            "root['one_experiment_config']['hash']",
+            "root['data']",
+            "root['hash']",
+        ]
+        sliced_dataset_hash = DeepHash(one_sliced_dataset_config, exclude_paths=deephash_exclude_paths)[one_sliced_dataset_config]
 
         if sliced_dataset_hash not in [sliced_dat["hash"] for sliced_dat in self.state['sliced_datasets']]:
             print("Sliced Dataset hash not found in existing assemblies. Creating new sliced dataset.")
@@ -200,8 +206,16 @@ class DatasetCreator:
             'assembly': dataset_assembly,
             'sliced_datasets': sliced_datasets,
         }
-        ftd_hash = DeepHash(fine_tuning_dataset, ignore_string_type_changes=True, ignore_repetition=True,
-                            ignore_numeric_type_changes=True)[fine_tuning_dataset]
+        deephash_exclude_paths=[
+            "root['one_experiment_config']['model_config']",
+            "root['one_experiment_config']['sahi_prediction_params']",
+            "root['one_experiment_config']['evaluation_config']",
+            "root['one_experiment_config']['hash']",
+            "root['data']",
+            "root['hash']",
+        ]
+
+        ftd_hash = DeepHash(fine_tuning_dataset, exclude_paths=deephash_exclude_paths)[fine_tuning_dataset]
 
         if ftd_hash not in [one_fine_tuning_dataset["hash"] for one_fine_tuning_dataset in
                             self.state['fine_tuning_datasets']]:
@@ -224,7 +238,10 @@ class DatasetCreator:
 
                 for orig_file in files_grabbed:
                     symlink_path = Path(dataset_path / orig_file.name)
-                    assert not symlink_path.exists(), f"Symlink path {symlink_path} already exists"
+                    assert not symlink_path.exists(), f"""Symlink path {symlink_path} already exists. This might be due
+                    to a failed previous attempt to create the fine tuning dataset. Try to remove the assoziated fine
+                    tuning folder and try again.
+                    """
                     symlink_path.symlink_to(orig_file)
 
             # Merge all sliced datasets coco files
@@ -240,9 +257,10 @@ class DatasetCreator:
 
                 if assembly_config['ignore_negative_samples']:
                     # Subsample in order to limit amount of negative images
-                    subsampled_coco = merged_coco.get_subsampled_coco(subsample_ratio=assembly_config['max_negatives_ratio'], category_id=-1)
+                    subsampled_coco = merged_coco.get_subsampled_coco(
+                        subsample_ratio=assembly_config['max_negatives_ratio'], category_id=-1)
                     save_json(subsampled_coco.json, coco_path.as_posix())
-                    fine_tuning_coco= subsampled_coco
+                    fine_tuning_coco = subsampled_coco
                 else:
                     fine_tuning_coco = merged_coco
 
@@ -291,40 +309,3 @@ class DatasetCreator:
             return [one_yolov5_fine_tuning_datasets for one_yolov5_fine_tuning_datasets in
                     self.state['yolov5_fine_tuning_datasets'] if
                     one_yolov5_fine_tuning_datasets["fine_tuning_dataset_hash"] == fine_tuning_dataset_hash][0]
-
-    def createYolov5Dataset(self, parent_dataset_path: Path, train_coco_path: Path, val_coco_path,
-                            overwrite_existing: bool = True):
-        sliced_images_dir = parent_dataset_path / "images"
-        yolov5_dataset_path = parent_dataset_path / "yolov5_files"
-
-        # Make sure the absolute paths in coco files are correct
-        rapair_absolute_image_paths(train_coco_path, sliced_images_dir, overwrite_file=True)
-        rapair_absolute_image_paths(val_coco_path, sliced_images_dir, overwrite_file=True)
-
-        # Check if file indicating successful dataset creation exists
-        check_finished = (yolov5_dataset_path / 'dataset_creation_finished.txt').exists()
-
-        if not check_finished or (overwrite_existing and yolov5_dataset_path.exists()):
-            shutil.rmtree(yolov5_dataset_path)
-        if not yolov5_dataset_path.exists():
-            (parent_dataset_path / "yolov5_files").mkdir(parents=True)
-
-            # init Coco object
-            train_coco = Coco.from_coco_dict_or_path(train_coco_path.as_posix(), image_dir=sliced_images_dir.as_posix())
-            val_coco = Coco.from_coco_dict_or_path(val_coco_path.as_posix(), image_dir=sliced_images_dir.as_posix())
-
-            # export converted YoloV5 formatted dataset into given output_dir with given train/val split
-            data_yml_path = export_coco_as_yolov5(
-                output_dir=(parent_dataset_path / 'yolov5_files').as_posix(),
-                train_coco=train_coco,
-                val_coco=val_coco,
-                numpy_seed=0,
-            )
-
-            shutil.copy((parent_dataset_path / 'yolov5_files' / "data.yml").as_posix(),
-                        (parent_dataset_path / 'yolov5_files' / "data.yaml").as_posix())
-
-            with open(yolov5_dataset_path / 'dataset_creation_finished.txt', 'w') as fp:
-                pass
-
-        return yolov5_dataset_path

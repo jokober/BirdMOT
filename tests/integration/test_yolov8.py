@@ -1,11 +1,9 @@
 from pathlib import Path
 
 from BirdMOT.data.DatasetCreator import DatasetCreator
-from BirdMOT.detection.predict import sliced_batch_predict
-from BirdMOT.detection.yolov8 import train_yolov8, sliced_yolov8_train
+from BirdMOT.detection.yolov8 import train_yolov8
 from fixtures.fixtures import coco_images_fixture_path, \
-    primary_coco_annotations_fixture_path, slice_params_fixture, yolov8_params_fixture, \
-    sahi_prediction_params, primary_val_images_path_fixture, train_coco_fixture_path, val_coco_fixture_path
+    primary_coco_annotations_fixture_path, slice_params_fixture, yolov8_params_fixture, primary_val_images_path_fixture, train_coco_fixture_path, val_coco_fixture_path
 from conftest import local_data_path_fixture
 
 

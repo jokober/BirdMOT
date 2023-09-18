@@ -197,9 +197,6 @@ def assemble_dataset(output_path: Path, assembly_config: dict, coco_files_path: 
     assert len(assembly_config['dataset_config']) == len(set([it['name'] for it in assembly_config['dataset_config']])), \
         "Dataset names must be unique"
 
-    [absolute_to_relative_image_paths(coco_files_path / dataset['coco_annotation_file_path'], image_path) for dataset in
-     assembly_config['dataset_config']]  # ToDo: Remove if all coco files only have relative paths
-
     # Create splits path lists
     train_splits, val_splits = zip(*[val_train_split(dataset_id=dataset['name'].replace(' ', '_'),
                                                      coco=coco_files_path / dataset['coco_annotation_file_path'],
@@ -255,47 +252,6 @@ def assemble_dataset(output_path: Path, assembly_config: dict, coco_files_path: 
         "negatives_val": {
             "path": negatives_val}
     }
-
-
-def rapair_absolute_image_paths(coco_path: Path, image_path: Path, overwrite_file=True):  # ToDo: Depricated Remove
-    raise AssertionError("This function is depricated. Use absolute_to_relative_image_paths instead")
-    # Go through all image paths in coco file and adjust them to absolute path on disk
-    with open(coco_path) as json_file:
-        coco_dict = json.load(json_file)
-
-    for it in coco_dict['images']:
-        print(f"Old Path: {it['file_name']}")
-
-        new_abs_image_path = str(find_correct_image_path(image_path, it["file_name"]))
-        assert new_abs_image_path is not None
-        it['file_name'] = new_abs_image_path
-        print(f"New Path: {new_abs_image_path}")
-
-    if overwrite_file:
-        with open(coco_path, 'w') as fp:
-            json.dump(coco_dict, fp)
-
-    return coco_dict
-
-
-def absolute_to_relative_image_paths(coco_path: Path, image_path: Path, overwrite_file=True):  # ToDo: Depricated Remove
-    # Go through all image paths in coco file and adjust them to absolute path on disk
-    with open(coco_path) as json_file:
-        coco_dict = json.load(json_file)
-
-    for it in coco_dict['images']:
-        new_abs_image_path = str(find_relative_image_path(image_path, it["file_name"]))
-        it['file_name'] = new_abs_image_path
-
-    if overwrite_file:
-        with open(coco_path, 'w') as fp:
-            json.dump(coco_dict, fp)
-            print(coco_path)
-            print(coco_dict['images'][:3])
-            print('Relative paths written to file')
-            time.sleep(5)
-
-    return coco_dict
 
 
 def find_correct_image_path(image_folder_path: Path, old_image_path: str) -> Path:  # ToDo: Depricated Remove

@@ -1,21 +1,267 @@
 import json
-import os
+import pickle
 import shutil
-import time
 from argparse import ArgumentParser
+from copy import deepcopy
 from dataclasses import asdict
+from os import environ
 from pathlib import Path
 from typing import Union, Dict, List
 
+from deepdiff import DeepHash
+import mlflow
+from sahi.predict import predict
 from sahi.scripts.coco_error_analysis import analyse
 from sahi.scripts.coco_evaluation import evaluate
-from sahi.predict import predict
 
 from BirdMOT.data.DatasetCreator import DatasetCreator
-from BirdMOT.data.dataset_tools import rapair_absolute_image_paths, find_correct_image_path
-from BirdMOT.detection.SahiPredictionParams import SahiPredictionParams
-from BirdMOT.detection.predict import sliced_batch_predict
+from BirdMOT.data.dataset_tools import find_correct_image_path
+from BirdMOT.helper.config import get_local_data_path
 from BirdMOT.helper.mlflow_tracking import log_evaluation
+from BirdMOT.detection.TrainingController import TrainingController
+from BirdMOT.helper.sahi_utils import get_model_type, create_sahi_setup_name
+from BirdMOT.helper.yolov_args_reader import load_filtered_yolo_args_yaml
+
+
+class EvaluationController:
+    def __init__(self):
+        self.local_data_path = get_local_data_path()
+        self.tmp_eval_dir_path = self.local_data_path / 'tmp_eval_dir'
+        self.tmp_eval_dir_path.mkdir(parents=True, exist_ok=True)
+        self.tmp_eval_state_path: Path = self.tmp_eval_dir_path / 'tmp_eval_state.pkl'
+        self.tmp_pred_path: Path = self.tmp_eval_dir_path / 'predictions'
+        self.tmp_pred_path.mkdir(parents=True, exist_ok=True)
+        self.tmp_eval_path: Path = self.tmp_eval_dir_path / 'evaluations'
+        self.tmp_eval_path.mkdir(parents=True, exist_ok=True)
+
+        self.state = None
+        self.load_state()
+
+    def write_state(self):
+        with open(self.tmp_eval_state_path, 'wb') as handle:
+            pickle.dump(self.state, handle)
+
+    def load_state(self):
+        if self.tmp_eval_state_path.exists():
+            with open(self.tmp_eval_state_path, 'rb') as handle:
+                self.state = pickle.load(handle)
+        else:
+            print("tmp_state_path does not exist. Creating new state.")
+            self.create_new_eval_state()
+            self.write_state()
+
+    def create_new_eval_state(self):
+        self.state = {
+            'predictions': [],
+            'evaluations': [],
+        }
+
+    def update_state(self, type, key, value):
+        if type == 'append':
+            self.state[key].append(value)
+        else:
+            raise NotImplementedError("The type is not implemented.")
+        self.write_state()
+
+    def find_or_create_prediction(self, one_experiment_config: dict, assembly_config, device='cpu',
+                                  train_missing=False):
+        one_experiment_config = deepcopy(one_experiment_config)
+        assembly_config = deepcopy(assembly_config)
+
+        assembly = DatasetCreator().find_or_create_dataset_assembly(assembly_config)
+        coco_path = assembly['data']['val']['path']
+
+        model = TrainingController().find_or_train_model(one_experiment_config, assembly_config, device=device,
+                                                         train_missing=train_missing)
+        model_path = model['data']['model_path']
+        weights_path = model['data']['weights_path']
+
+        model_type = get_model_type(one_experiment_config, include_version=False)
+        # model_type = 'yolov8' if one_experiment_config['model_config']['model'].contains('yolov8')
+
+        sahi_prediction_params = dict(
+            model_type=model_type,
+            model_path=weights_path.as_posix(),
+            model_device=device,
+            model_confidence_threshold=one_experiment_config['sahi_prediction_params']['model_confidence_threshold'],
+            no_standard_prediction=one_experiment_config['sahi_prediction_params']['no_standard_prediction'],
+            no_sliced_prediction=one_experiment_config['sahi_prediction_params']['no_sliced_prediction'],
+            slice_height=one_experiment_config['sahi_prediction_params']['slice_height'],
+            slice_width=one_experiment_config['sahi_prediction_params']['slice_width'],
+            overlap_height_ratio=one_experiment_config['sahi_prediction_params']['overlap_height_ratio'],
+            overlap_width_ratio=one_experiment_config['sahi_prediction_params']['overlap_width_ratio'],
+            export_crop=False,
+            postprocess_type=one_experiment_config['sahi_prediction_params']['postprocess_type'],
+            postprocess_match_metric=one_experiment_config['sahi_prediction_params']['postprocess_match_metric'],
+            postprocess_match_threshold=one_experiment_config['sahi_prediction_params']['postprocess_match_threshold'],
+            export_pickle=True,
+            project=(model_path / "sahi_predictions").as_posix(),
+            name=one_experiment_config['model_config']['name'],
+            return_dict=True,
+        )
+
+        prediction_config = {
+            "sahi_prediction_params": sahi_prediction_params,
+            "coco_path": coco_path,
+            "hash": None,
+            "data": None
+        }
+
+        deephash_exclude_paths = [
+            "root['sahi_prediction_params']['dataset_json_path']",
+            "root['sahi_prediction_params']['source']",
+            "root['sahi_prediction_params']['name']",
+            "root['sahi_prediction_params']['project']",
+            "root['hash']",
+            "root['data']",
+        ]
+        prediction_hash = DeepHash(prediction_config, exclude_paths=deephash_exclude_paths)[prediction_config]
+
+        # Create predictions if they do not exist yet
+        if prediction_hash not in [pred_conf["hash"] for pred_conf in self.state['predictions']]:
+            coco, pred_coco_path, source = self.generate_prediction_folder_with_coco_file(
+                model_id=one_experiment_config['model_config']['name'],
+                coco_path=coco_path,  # ToDo: Get it from somewhere else?
+                image_path=DatasetCreator().images_dir)
+
+            sahi_prediction_params["source"] = source.as_posix()
+            sahi_prediction_params["dataset_json_path"] = pred_coco_path.as_posix()
+
+            sahi_prediction_params["name"] = prediction_hash
+            predictions = predict(**sahi_prediction_params)
+            prediction_config['data'] = predictions
+            prediction_config['data']['weights_path'] = weights_path.as_posix()
+            prediction_config['hash'] = prediction_hash
+            self.update_state(type="append", key='predictions', value=prediction_config)
+
+        else:
+            prediction_config = [prediction_config for prediction_config in self.state['predictions'] if
+                                 prediction_config["hash"] == prediction_hash][0]
+
+        return prediction_config
+
+    def find_or_create_evaluation(self, one_experiment_config: dict, assembly_config: dict, device: str = 'cpu',
+                                  train_missing: bool = False):
+        one_experiment_config = deepcopy(one_experiment_config)
+        assembly_config = deepcopy(assembly_config)
+
+        prediction_results = self.find_or_create_prediction(one_experiment_config=one_experiment_config,
+                                                            assembly_config=assembly_config, device=device,
+                                                            train_missing=train_missing)
+
+        sahi_evaluation = {
+            "one_experiment_config": one_experiment_config,
+            "assembly_config": assembly_config,
+            "sahi_prediction_params": prediction_results['sahi_prediction_params'],
+            "data": {}
+        }
+        deephash_exclude_paths = [
+            "root['one_experiment_config']['model_config']['project']",
+            "root['one_experiment_config']['model_config']['name']",
+            "root['one_experiment_config']['model_config']['device']",
+            "root['one_experiment_config']['model_config']['exists_ok']",
+            "root['one_experiment_config']['hash']",
+            "root['assembly_config']['hash']",
+            "root['sahi_prediction_params']['hash']",
+            "root['data']",
+            "root['hash']",
+        ]
+        evaluation_hash = DeepHash(sahi_evaluation, exclude_paths=deephash_exclude_paths)[sahi_evaluation]
+        if evaluation_hash not in [eval_hash["hash"] for eval_hash in self.state['evaluations']]:
+
+            # Evaluation
+            eval_results = evaluate_coco(dataset_json_path=prediction_results['coco_path'],
+                                         result_json_path=(Path(
+                                             prediction_results['data']['export_dir']) / 'result.json').as_posix(),
+                                         iou_thrs=one_experiment_config['evaluation_config']['iou_thrs'],
+                                         out_dir=(self.tmp_eval_path / evaluation_hash / "evaluation").as_posix())
+
+            # Analysis
+            analysis_results = analyse(dataset_json_path=prediction_results['coco_path'],
+                                       result_json_path=(Path(
+                                           prediction_results['data']['export_dir']) / 'result.json').as_posix(),
+                                       out_dir=(self.tmp_eval_path / evaluation_hash / "analysis").as_posix(),
+                                       type="bbox", return_dict=True, )
+
+            eval_results['eval_results'].pop('bbox_mAP_copypaste')
+            eval_results.pop('export_path')
+
+            sahi_evaluation['sahi_prediction_params'] = prediction_results['sahi_prediction_params']
+            sahi_evaluation['data']['eval_results'] = eval_results['eval_results']
+            sahi_evaluation['data']['analysis_results'] = analysis_results
+            sahi_evaluation['data']['prediction_result'] = prediction_results
+            sahi_evaluation['hash'] = evaluation_hash
+            sahi_evaluation['sahi_setup_name'] = create_sahi_setup_name(one_experiment_config)
+            self.update_state(type="append", key='evaluations', value=sahi_evaluation)
+        else:
+            sahi_evaluation = \
+            [eval_config for eval_config in self.state['evaluations'] if eval_config["hash"] == evaluation_hash][0]
+
+        # Log evaluation
+        if environ.get('MLFLOW_TRACKING_URI') is not None:
+            mlflow_params = sahi_evaluation['sahi_prediction_params']
+            mlflow_params.update({'sahi_setup_name': sahi_evaluation['sahi_setup_name']})
+            mlflow_params.update({'iou_thrs': one_experiment_config['evaluation_config']['iou_thrs']})
+            mlflow_params.update(
+                {i: one_experiment_config['sliced_datasets'][0][i] for i in one_experiment_config['sliced_datasets'][0]
+                 if i != 'height' and i != 'width'})
+            train_w_slices = sorted([train_slice_conf['width'] for train_slice_conf in one_experiment_config['sliced_datasets']])
+            train_h_slices =  sorted([train_slice_conf['height'] for train_slice_conf in one_experiment_config['sliced_datasets']])
+            mlflow_params.update({'train_width_slices_config': ','.join([str(i) for i in train_w_slices])})
+            mlflow_params.update({'train_height_slices_config': ','.join([str(i) for i in train_h_slices])})
+            # Add args used for yolo training to mlflow params
+            mlflow_params.update(load_filtered_yolo_args_yaml(Path(prediction_results['data']['weights_path']).parents[1] / 'args.yaml'))
+
+            mlflow_metrics = {}
+            # mlflow_metrics.update(analysis_results)
+            mlflow_metrics.update(sahi_evaluation['data']['eval_results'])
+            mlflow_metrics.update({'prediction_speed': prediction_results['data']['durations_in_seconds']})
+            # mlflow_metrics.update({'train_slice_conf'][0]['overlap_height_ratio']:one_experiment_config['sliced_datasets']['overlap_height_ratio']})
+            # mlflow_metrics.update({'train_slice_conf'][0]['overlap_width_ratio']:one_experiment_config['sliced_datasets']['overlap_width_ratio']})
+            # mlflow_metrics.update({'train_slice_conf'][0]['min_area_ratio']:one_experiment_config['sliced_datasets']['min_area_ratio']})
+            mlflow_artifact_paths = [
+                Path(sahi_evaluation['data']["analysis_results"]['bbox']['overall']['gt_area_histogram']).parent,
+                prediction_results['data']['weights_path']
+
+            ]
+            log_evaluation(f"BirdMOT Yolov8", mlflow_params,
+                           mlflow_metrics, mlflow_artifact_paths)
+
+        return sahi_evaluation
+
+    def generate_prediction_folder_with_coco_file(self, model_id: str, coco_path: Path, image_path: Path):
+        assembly_img_symlink_dir = self.tmp_pred_path / model_id
+
+        # Go through all image paths in coco file and adjust them to absolute path on disk
+        with open(coco_path) as json_file:
+            coco_dict = json.load(json_file)
+
+        if assembly_img_symlink_dir.exists():
+            # Check if number of files in symlink dir is equal to number of images in val set. Recreate folder if not.
+            if len(coco_dict['images']) != len(list(assembly_img_symlink_dir.glob('*'))):
+                shutil.rmtree(assembly_img_symlink_dir)
+                assembly_img_symlink_dir.mkdir(parents=True, exist_ok=True)
+
+        for idx, it in enumerate(coco_dict['images']):
+            new_abs_image_path = Path(find_correct_image_path(image_path, it["file_name"]))
+
+            image_path_symlink = (assembly_img_symlink_dir / f"{idx}{Path(it['file_name']).suffix}")
+            it["file_name"] = image_path_symlink.as_posix()
+            if image_path_symlink.is_symlink() and image_path_symlink.exists():
+                pass
+            else:
+                target = new_abs_image_path
+                print(f"target: {target} {target.exists()}")
+                my_symlink = image_path_symlink
+                print(f"my_symlink: {my_symlink}  {my_symlink.exists()}")
+                my_symlink.parent.mkdir(parents=True, exist_ok=True)
+                my_symlink.symlink_to(target)
+
+            coco_pred_path = assembly_img_symlink_dir / f"{model_id}_pred.json"
+            with open(coco_pred_path, 'w') as fp:
+                json.dump(coco_dict, fp)
+
+        return coco_dict, coco_pred_path, assembly_img_symlink_dir
 
 
 def evaluate_coco(dataset_json_path, result_json_path, iou_thrs=0.50, out_dir=None):
@@ -28,91 +274,23 @@ def evaluate_coco(dataset_json_path, result_json_path, iou_thrs=0.50, out_dir=No
         max_detections=1000000,
         iou_thrs=iou_thrs,
         areas=[32 ** 2, 96 ** 2, 1e5 ** 2],
-        #[[0 ** 2, 32 ** 2],     # small - objects that have area between 0 sq pixels and 32*32 (1024) sq pixels
+        # [[0 ** 2, 32 ** 2],     # small - objects that have area between 0 sq pixels and 32*32 (1024) sq pixels
         #        [32 ** 2, 96 ** 2],   # medium - objects that have area between 32*32 sq pixels and 96*96 (9216) sq pixels
         #        [80 ** 2, 1e5 ** 2]],
 
         # Found in sahi code:
-        #cocoEval.params.areaRng = [
-        #[0 ** 2, areas[2]],
-        #[0 ** 2, areas[0]],
-        #[areas[0], areas[1]],
-        #[areas[1], areas[2]],
-   # ]
+        # cocoEval.params.areaRng = [
+        # [0 ** 2, areas[2]],
+        # [0 ** 2, areas[0]],
+        # [areas[0], areas[1]],
+        # [areas[1], areas[2]],
+        # ]
         # ToDo: make this a parameter Docs: object area ranges for evaluation https://github.com/cocodataset/cocoapi/issues/289
         return_dict=True,
 
     )
 
     return eval_results
-
-
-def evaluate_coco_from_config(experiment_configs: Union[Path, Dict], coco_path: Path, device: str):
-    if isinstance(experiment_configs, Path):
-        with open(experiment_configs) as exp_file:
-            experiment_configs = json.load(exp_file)
-
-#    rapair_absolute_image_paths(coco_path, DatasetCreator().images_dir, overwrite_file=True)
-
-    coco, pred_coco_path , source = generate_prediction_folder_with_coco_file(dataset_assembly_id= experiment_configs['dataset_assembly_id'], coco_path= coco_path, image_path= DatasetCreator().images_dir,)
-
-
-
-
-    for one_experiment_config in experiment_configs['experiments']:
-        print(one_experiment_config)
-        print(one_experiment_config['model_config'])
-        print(one_experiment_config['model_config']['name'])
-        # Get model path
-        model_path = DatasetCreator().models_dir / experiment_configs["dataset_assembly_id"] / one_experiment_config['model_config']['name']
-        dataset_result_json = model_path / "result.json"
-        # result_path = (model_path / "results.json").as_posix()
-
-        model_type = 'yolov8' if 'yolov8' in one_experiment_config['model_config']['model'] else None
-        #model_type = 'yolov8' if one_experiment_config['model_config']['model'].contains('yolov8')
-
-        sahi_prediction_params = SahiPredictionParams(
-            model_type=model_type,
-            model_path=(model_path / "weights" / "best.pt").as_posix(),
-            model_device=device,
-            model_confidence_threshold=0.001, #one_experiment_config['sahi_prediction_params']['model_confidence_threshold'],
-            source=source.as_posix(),
-            no_standard_prediction=one_experiment_config['sahi_prediction_params']['no_standard_prediction'],
-            no_sliced_prediction=one_experiment_config['sahi_prediction_params']['no_sliced_prediction'],
-            slice_height=one_experiment_config['sahi_prediction_params']['slice_height'],
-            slice_width=one_experiment_config['sahi_prediction_params']['slice_width'],
-            overlap_height_ratio=one_experiment_config['sahi_prediction_params']['overlap_height_ratio'],
-            overlap_width_ratio=one_experiment_config['sahi_prediction_params']['overlap_width_ratio'],
-            export_crop=False,
-            postprocess_type=one_experiment_config['sahi_prediction_params']['postprocess_type'],
-            postprocess_match_metric=one_experiment_config['sahi_prediction_params']['postprocess_match_metric'],
-            postprocess_match_threshold=one_experiment_config['sahi_prediction_params']['postprocess_match_threshold'],
-            export_pickle=False,
-            dataset_json_path=pred_coco_path.as_posix(),
-            project=(model_path / "predictions").as_posix(),
-            name=one_experiment_config['model_config']['name'],
-            return_dict=True,
-
-        )
-        predictions = predict( **asdict(sahi_prediction_params))
-        print(predictions)
-
-        results_dir= model_path / "results"
-        results_dir.mkdir(exist_ok=True)
-        # Evaluation
-        eval_results = evaluate_coco(dataset_json_path=pred_coco_path, result_json_path=(predictions['export_dir'] / 'result.json' ).as_posix(), iou_thrs=one_experiment_config['evaluation_config']['iou_thrs'],
-                      out_dir=results_dir.as_posix())
-
-
-        # Analysis
-        analysis_results = analyse(dataset_json_path= pred_coco_path.as_posix(), result_json_path=(predictions['export_dir'] / 'result.json' ).as_posix(), out_dir=results_dir.as_posix(), type="bbox",  return_dict=True,)
-        print(analysis_results)
-
-        # Log evaluation
-        mlflow_params = asdict(sahi_prediction_params)
-        mlflow_params.update({'iou_thrs': one_experiment_config['evaluation_config']['iou_thrs']})
-        log_evaluation(f"Eval Sahi {one_experiment_config['model_config']['name']}", mlflow_params, eval_results['eval_results'], results_dir)
-
 
 def generate_images_symlink_folder(image_paths: List[Path], dataset_assembly_id: str) -> Path:
     """
@@ -140,92 +318,3 @@ def generate_images_symlink_folder(image_paths: List[Path], dataset_assembly_id:
             my_symlink.symlink_to(target)
 
     return assembly_img_symlink_dir
-
-
-def generate_prediction_folder_with_coco_file(dataset_assembly_id: str, coco_path: Path, image_path: Path):
-        assembly_img_symlink_dir = DatasetCreator().val_images_dir / dataset_assembly_id
-
-        # Go through all image paths in coco file and adjust them to absolute path on disk
-        with open(coco_path) as json_file:
-            coco_dict = json.load(json_file)
-
-        if assembly_img_symlink_dir.exists():
-            # Check if number of files in symlink dir is equal to number of images in val set. Recreate folder if not.
-            if len(coco_dict['images']) != len(list(assembly_img_symlink_dir.glob('*'))):
-                shutil.rmtree(assembly_img_symlink_dir)
-                assembly_img_symlink_dir.mkdir(parents=True, exist_ok=True)
-
-        for idx, it in enumerate(coco_dict['images']):
-            new_abs_image_path = Path(find_correct_image_path(image_path, it["file_name"]))
-
-            image_path_symlink = (assembly_img_symlink_dir / f"{idx}{Path(it['file_name']).suffix}")
-            it["file_name"] = image_path_symlink.as_posix()
-            if image_path_symlink.is_symlink() and image_path_symlink.exists():
-                pass
-            else:
-                target = new_abs_image_path
-                print(f"target: {target} {target.exists()}")
-                my_symlink = image_path_symlink
-                print(f"my_symlink: {my_symlink}  {my_symlink.exists()}")
-                my_symlink.parent.mkdir(parents=True, exist_ok=True)
-                my_symlink.symlink_to(target)
-
-            coco_pred_path = assembly_img_symlink_dir / f"{dataset_assembly_id}_pred.json"
-            with open(coco_pred_path, 'w') as fp:
-                json.dump(coco_dict, fp)
-
-        return coco_dict, coco_pred_path, assembly_img_symlink_dir
-
-if __name__ == "__main__":
-    parser = ArgumentParser()
-    parser.add_argument("--coco_path", type=Path, required=True)
-    parser.add_argument("--experiment_config", type=Path, required=True)
-    parser.add_argument("--device", type=str, required=False)
-    args = parser.parse_args()
-
-    if args.device is not None:
-        device = args.device
-    else:
-        device = "cpu"
-
-    evaluate_coco_from_config(experiment_configs=args.experiment_config, coco_path=args.coco_path, device=device)
-    # sahi_prediction_params = SahiPredictionParams(
-    #    model_type = "yolov8",
-    #    model_path = "/home/fids/fids/BirdMOT/yolov8n_best.pt",
-    #    model_device="0",
-    #    model_confidence_threshold=0.2,
-    #    source=None,
-    #    no_standard_prediction = False,
-    #    no_sliced_prediction = False,
-    #    slice_height = 640,
-    #    slice_width = 640,
-    #    overlap_height_ratio = 0.2,
-    #    overlap_width_ratio = 0.2,
-    #    export_crop = False,
-    #    postprocess_type = 'GREEDYNMM',
-    #    postprocess_match_metric = 'IOS',
-    #    postprocess_match_threshold = 0.5,
-    #    export_pickle = False,
-    #    dataset_json_path = "/home/jo/coding_projects/fids/BirdMOT/tests/Test BirdMOT/exp27/results.json",
-    #    project = 'Test BirdMOT',
-    #    name = 'test_exp',
-    #    return_dict = True,
-
-#   )
-#
-# sahi_prediction_params.dataset_json_path = "/media/data/BirdMOT/local_data/dataset/coco_files/merged/birdmot_05_2023_coco.json"
-# predictions = sliced_batch_predict(Path("/media/data/BirdMOT/local_data/dataset/images"), sahi_prediction_params)
-# assert (tmp_path / "result_coco.json").exists(), "result_coco.json should exist"
-
-# with open(f"{predictions['export_dir'].as_posix()}/result.json", "rt") as fin:
-#    with open(f"{predictions['export_dir'].as_posix()}/result_cat_mapped.json", "wt") as fout:
-#        for line in fin:
-#            fout.write(line.replace("""
-#            "category_id":0"
-#            """,
-#            """
-#            "category_id":1
-#            """)
-#            )
-
-# evaluate_coco( sahi_prediction_params.dataset_json_path, f"{predictions['export_dir'].as_posix()}/result_cat_mapped.json")

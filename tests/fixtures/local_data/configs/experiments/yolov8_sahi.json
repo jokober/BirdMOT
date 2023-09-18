@@ -45,6 +45,9 @@
         "postprocess_match_threshold": 0.5,
         "project": "Test BirdMOT",
         "name": "test_exp"
+      },
+      "evaluation_config": {
+        "iou_thrs": 0.1
       }
     }
   ]
