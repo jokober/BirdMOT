@@ -46,7 +46,8 @@ def test_find_or_create_evaluations(one_experiment_config_fixture, assembly_conf
     assert len(eval_controller.state['evaluations']) == 0, "There should be no evaluations in the state"
 
     # Create a evaluation
-    returned_evaluation = eval_controller.find_or_create_evaluation(one_experiment_config_fixture, assembly_configs, device='0', train_missing=True)
+    returned_evaluation = eval_controller.find_or_create_evaluation(one_experiment_config_fixture, assembly_configs,
+                                                                    device='0', train_missing=True)
     assert 'hash' in returned_evaluation, "The returned sliced dataset should have a hash"
     assert returned_evaluation['hash'] in [one_evaluation['hash'] for one_evaluation in
                                                eval_controller.state[
@@ -54,14 +55,16 @@ def test_find_or_create_evaluations(one_experiment_config_fixture, assembly_conf
     assert len(eval_controller.state['evaluations']) == 1
 
     # Create a evaluation with the same config and make sure it is not created again
-    returned_evaluation2 = eval_controller.find_or_create_evaluation(one_experiment_config_fixture, assembly_configs, device='0', train_missing=True)
+    returned_evaluation2 = eval_controller.find_or_create_evaluation(one_experiment_config_fixture, assembly_configs,
+                                                                     device='0', train_missing=True)
     assert len(
         [eval_controller.state['evaluations'] == 1]), "There should still be only one evaluation in the state"
 
     # Change relevant evaluation data and make sure a new evaluation is created
     one_experiment_config2 = one_experiment_config_fixture
     one_experiment_config2['evaluation_config']['iou_thrs'] =0.6
-    returned_evaluation3 = eval_controller.find_or_create_evaluation(one_experiment_config2, assembly_configs, device='0', train_missing=True)
+    returned_evaluation3 = eval_controller.find_or_create_evaluation(one_experiment_config2, assembly_configs,
+                                                                     device='0', train_missing=True)
     assert returned_evaluation3['hash'] in [one_evaluation['hash'] for one_evaluation in
                                                 eval_controller.state[
                                                     'evaluations']], "The returned evaluation should be in the state"
@@ -70,7 +73,8 @@ def test_find_or_create_evaluations(one_experiment_config_fixture, assembly_conf
     # Change relevant evaluation data and make sure a new evaluation is created
     one_experiment_config3 = one_experiment_config_fixture
     one_experiment_config3['sahi_prediction_params']['postprocess_type'] ='NMS'
-    returned_evaluation4 = eval_controller.find_or_create_evaluation(one_experiment_config3, assembly_configs, device='0', train_missing=True)
+    returned_evaluation4 = eval_controller.find_or_create_evaluation(one_experiment_config3, assembly_configs,
+                                                                     device='0', train_missing=True)
     assert returned_evaluation4['hash'] in [one_evaluation['hash'] for one_evaluation in
                                                 eval_controller.state[
                                                     'evaluations']], "The returned evaluation should be in the state"
@@ -80,7 +84,8 @@ def test_find_or_create_evaluations(one_experiment_config_fixture, assembly_conf
     # Change irrelevant evaluation data and make sure a new evaluation is created
     one_experiment_config4 = deepcopy(one_experiment_config_fixture)
     one_experiment_config4['model_config']['name'] = "another name 2"
-    returned_evaluation5 = eval_controller.find_or_create_evaluation(one_experiment_config4, assembly_configs, device='0', train_missing=True)
+    returned_evaluation5 = eval_controller.find_or_create_evaluation(one_experiment_config4, assembly_configs,
+                                                                     device='0', train_missing=True)
     assert returned_evaluation5['hash'] in [one_evaluation['hash'] for one_evaluation in
                                                 eval_controller.state[
                                                     'evaluations']], "The returned evaluation should be in the state"

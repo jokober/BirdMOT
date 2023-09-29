@@ -1,25 +1,23 @@
 import json
 import pickle
 import shutil
-from argparse import ArgumentParser
 from copy import deepcopy
-from dataclasses import asdict
 from os import environ
 from pathlib import Path
-from typing import Union, Dict, List
+from typing import List
 
 from deepdiff import DeepHash
-import mlflow
 from sahi.predict import predict
 from sahi.scripts.coco_error_analysis import analyse
 from sahi.scripts.coco_evaluation import evaluate
 
 from BirdMOT.data.DatasetCreator import DatasetCreator
 from BirdMOT.data.dataset_tools import find_correct_image_path
+from BirdMOT.detection.TrainingController import TrainingController
+from BirdMOT.detection.fiftyone_evaluation import fiftyone_evaluation
 from BirdMOT.helper.config import get_local_data_path
 from BirdMOT.helper.mlflow_tracking import log_evaluation
-from BirdMOT.detection.TrainingController import TrainingController
-from BirdMOT.helper.sahi_utils import get_model_type, create_sahi_setup_name
+from BirdMOT.helper.sahi_utils import get_model_type, get_setup_name
 from BirdMOT.helper.yolov_args_reader import load_filtered_yolo_args_yaml
 
 
@@ -56,7 +54,16 @@ class EvaluationController:
             'evaluations': [],
         }
 
+    def delete_existing(self, key, hash):
+        self.load_state()
+        print("Deleting existing")
+
+        self.state[key] = [item for item in self.state[key] if item["hash"] != hash]
+        assert not hash in [item for item in self.state[key]]
+        self.write_state()
+
     def update_state(self, type, key, value):
+        self.load_state()
         if type == 'append':
             self.state[key].append(value)
         else:
@@ -120,8 +127,7 @@ class EvaluationController:
         # Create predictions if they do not exist yet
         if prediction_hash not in [pred_conf["hash"] for pred_conf in self.state['predictions']]:
             coco, pred_coco_path, source = self.generate_prediction_folder_with_coco_file(
-                model_id=one_experiment_config['model_config']['name'],
-                coco_path=coco_path,  # ToDo: Get it from somewhere else?
+                assembly_id=assembly_config['dataset_assembly_id'], coco_path=coco_path,
                 image_path=DatasetCreator().images_dir)
 
             sahi_prediction_params["source"] = source.as_posix()
@@ -141,7 +147,7 @@ class EvaluationController:
         return prediction_config
 
     def find_or_create_evaluation(self, one_experiment_config: dict, assembly_config: dict, device: str = 'cpu',
-                                  train_missing: bool = False):
+                                  train_missing: bool = False, overwrite_existing=False):
         one_experiment_config = deepcopy(one_experiment_config)
         assembly_config = deepcopy(assembly_config)
 
@@ -165,15 +171,22 @@ class EvaluationController:
             "root['sahi_prediction_params']['hash']",
             "root['data']",
             "root['hash']",
+            "root['sahi_setup_name']",
+            "root['setup_name']",
         ]
         evaluation_hash = DeepHash(sahi_evaluation, exclude_paths=deephash_exclude_paths)[sahi_evaluation]
-        if evaluation_hash not in [eval_hash["hash"] for eval_hash in self.state['evaluations']]:
 
+        # Delete existing evaluation if overwrite_existing is True
+        if overwrite_existing:
+            self.delete_existing('evaluations', evaluation_hash)
+
+        # Check if evaluation already exists return if so or create otherwise
+        if evaluation_hash not in [eval_hash["hash"] for eval_hash in self.state['evaluations']]:
+            predictions_path = Path(prediction_results['data']['export_dir']) / 'result.json'
             # Evaluation
             eval_results = evaluate_coco(dataset_json_path=prediction_results['coco_path'],
-                                         result_json_path=(Path(
-                                             prediction_results['data']['export_dir']) / 'result.json').as_posix(),
-                                         iou_thrs=one_experiment_config['evaluation_config']['iou_thrs'],
+                                         result_json_path=predictions_path.as_posix(),
+                                         #iou_thrs=one_experiment_config['evaluation_config']['iou_thrs'],
                                          out_dir=(self.tmp_eval_path / evaluation_hash / "evaluation").as_posix())
 
             # Analysis
@@ -183,42 +196,51 @@ class EvaluationController:
                                        out_dir=(self.tmp_eval_path / evaluation_hash / "analysis").as_posix(),
                                        type="bbox", return_dict=True, )
 
+            fiftyone_eval_results = fiftyone_evaluation(image_path=DatasetCreator().images_dir,
+                                                        labels_path=prediction_results['coco_path'],
+                                                        predictions_path=predictions_path,
+                                                        iou=0.4)
+
             eval_results['eval_results'].pop('bbox_mAP_copypaste')
             eval_results.pop('export_path')
 
             sahi_evaluation['sahi_prediction_params'] = prediction_results['sahi_prediction_params']
             sahi_evaluation['data']['eval_results'] = eval_results['eval_results']
+            sahi_evaluation['data']['eval_results_pycocotools'] = eval_results['eval_results_pycocotools']
+            sahi_evaluation['data']['eval_results_fiftyone'] = fiftyone_eval_results
             sahi_evaluation['data']['analysis_results'] = analysis_results
             sahi_evaluation['data']['prediction_result'] = prediction_results
             sahi_evaluation['hash'] = evaluation_hash
-            sahi_evaluation['sahi_setup_name'] = create_sahi_setup_name(one_experiment_config)
+            sahi_evaluation['setup_name'] = get_setup_name(one_experiment_config)
             self.update_state(type="append", key='evaluations', value=sahi_evaluation)
         else:
             sahi_evaluation = \
-            [eval_config for eval_config in self.state['evaluations'] if eval_config["hash"] == evaluation_hash][0]
+                [eval_config for eval_config in self.state['evaluations'] if eval_config["hash"] == evaluation_hash][0]
 
         # Log evaluation
         if environ.get('MLFLOW_TRACKING_URI') is not None:
             mlflow_params = sahi_evaluation['sahi_prediction_params']
-            mlflow_params.update({'sahi_setup_name': sahi_evaluation['sahi_setup_name']})
+            mlflow_params.update({'setup_name': sahi_evaluation['setup_name']})
             mlflow_params.update({'iou_thrs': one_experiment_config['evaluation_config']['iou_thrs']})
             mlflow_params.update(
                 {i: one_experiment_config['sliced_datasets'][0][i] for i in one_experiment_config['sliced_datasets'][0]
                  if i != 'height' and i != 'width'})
-            train_w_slices = sorted([train_slice_conf['width'] for train_slice_conf in one_experiment_config['sliced_datasets']])
-            train_h_slices =  sorted([train_slice_conf['height'] for train_slice_conf in one_experiment_config['sliced_datasets']])
+            train_w_slices = sorted(
+                [train_slice_conf['width'] for train_slice_conf in one_experiment_config['sliced_datasets']])
+            train_h_slices = sorted(
+                [train_slice_conf['height'] for train_slice_conf in one_experiment_config['sliced_datasets']])
             mlflow_params.update({'train_width_slices_config': ','.join([str(i) for i in train_w_slices])})
             mlflow_params.update({'train_height_slices_config': ','.join([str(i) for i in train_h_slices])})
             # Add args used for yolo training to mlflow params
-            mlflow_params.update(load_filtered_yolo_args_yaml(Path(prediction_results['data']['weights_path']).parents[1] / 'args.yaml'))
+            mlflow_params.update(
+                load_filtered_yolo_args_yaml(Path(prediction_results['data']['weights_path']).parents[1] / 'args.yaml'))
 
             mlflow_metrics = {}
             # mlflow_metrics.update(analysis_results)
             mlflow_metrics.update(sahi_evaluation['data']['eval_results'])
+            # mlflow_metrics.update(sahi_evaluation['data']['eval_results_pycocotools']) #mlflow.exceptions.RestException: INVALID_PARAMETER_VALUE: Invalid metric name: 'bbox_AR@1'. Names may only contain alphanumerics, underscores (_), dashes (-), periods (.), spaces ( ), and slashes (/).
+
             mlflow_metrics.update({'prediction_speed': prediction_results['data']['durations_in_seconds']})
-            # mlflow_metrics.update({'train_slice_conf'][0]['overlap_height_ratio']:one_experiment_config['sliced_datasets']['overlap_height_ratio']})
-            # mlflow_metrics.update({'train_slice_conf'][0]['overlap_width_ratio']:one_experiment_config['sliced_datasets']['overlap_width_ratio']})
-            # mlflow_metrics.update({'train_slice_conf'][0]['min_area_ratio']:one_experiment_config['sliced_datasets']['min_area_ratio']})
             mlflow_artifact_paths = [
                 Path(sahi_evaluation['data']["analysis_results"]['bbox']['overall']['gt_area_histogram']).parent,
                 prediction_results['data']['weights_path']
@@ -229,8 +251,8 @@ class EvaluationController:
 
         return sahi_evaluation
 
-    def generate_prediction_folder_with_coco_file(self, model_id: str, coco_path: Path, image_path: Path):
-        assembly_img_symlink_dir = self.tmp_pred_path / model_id
+    def generate_prediction_folder_with_coco_file(self, assembly_id: str, coco_path: Path, image_path: Path):
+        assembly_img_symlink_dir = self.tmp_pred_path / assembly_id
 
         # Go through all image paths in coco file and adjust them to absolute path on disk
         with open(coco_path) as json_file:
@@ -257,20 +279,20 @@ class EvaluationController:
                 my_symlink.parent.mkdir(parents=True, exist_ok=True)
                 my_symlink.symlink_to(target)
 
-            coco_pred_path = assembly_img_symlink_dir / f"{model_id}_pred.json"
+            coco_pred_path = assembly_img_symlink_dir / f"{assembly_id}_pred.json"
             with open(coco_pred_path, 'w') as fp:
                 json.dump(coco_dict, fp)
 
         return coco_dict, coco_pred_path, assembly_img_symlink_dir
 
 
-def evaluate_coco(dataset_json_path, result_json_path, iou_thrs=0.50, out_dir=None):
+def evaluate_coco(dataset_json_path, result_json_path, iou_thrs=None, out_dir=None):
     eval_results = evaluate(
         dataset_json_path=dataset_json_path,
         result_json_path=result_json_path,
         out_dir=out_dir,
         type="bbox",
-        classwise=True,
+        classwise=False,
         max_detections=1000000,
         iou_thrs=iou_thrs,
         areas=[32 ** 2, 96 ** 2, 1e5 ** 2],
@@ -291,6 +313,7 @@ def evaluate_coco(dataset_json_path, result_json_path, iou_thrs=0.50, out_dir=No
     )
 
     return eval_results
+
 
 def generate_images_symlink_folder(image_paths: List[Path], dataset_assembly_id: str) -> Path:
     """

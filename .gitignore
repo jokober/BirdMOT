@@ -11,4 +11,6 @@
 /data/sahi_slicing/
 /data/trackers/
 /data/coco_dataset.json
-!/birdmot_config.ini
+/src/BirdMOT/trackers/ByteTrack/
+/src/BirdMOT/trackers/OC_SORT/
+

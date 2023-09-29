@@ -77,6 +77,7 @@ class DatasetCreator:
             self.write_state()
 
     def update_state(self, type, key, value):
+        self.load_state()
         if type == 'append':
             self.state[key].append(value)
         else:
@@ -96,8 +97,8 @@ class DatasetCreator:
         assembly_config = deepcopy(assembly_config)
         assembly_hash = DeepHash(assembly_config)[assembly_config]
 
-
-        if assembly_hash not in [ass_conf["hash"] for ass_conf in self.state['assemblies']]:
+        assembly_in_state = [ass_conf for ass_conf in self.state['assemblies'] if ass_conf["hash"] == assembly_hash]
+        if len(assembly_in_state) == 0 or not  assembly_in_state[0]['data']['train']['path'].exists():
             print("Assembly hash not found in existing assemblies. Creating new dataset assembly.")
             assembly_config['hash'] = assembly_hash
 
@@ -106,6 +107,20 @@ class DatasetCreator:
                                                         coco_files_path=self.coco_files_dir,
                                                         image_path=self.images_dir,
                                                         categories_path=self.coco_categories_path)
+
+            # Assert images in split datasets are disjoint
+            image_name_set_train = [image.file_name for image in dataset_assembly_results['train']['coco'].images]
+            image_name_set_val = [image.file_name for image in dataset_assembly_results['val']['coco'].images]
+            assert set(image_name_set_train).isdisjoint(image_name_set_val)
+
+            # Assert that there are no images with a width value of 3640. This is only required as there where a faulty
+            # Datsaset #ToDO: Remove this assertion as soon as the faulty dataset is removed
+            try:
+                is_faulty_dimension_list = [image.width == 3640 for image in dataset_assembly_results['train']['coco'].images]
+                assert not any(is_faulty_dimension_list)
+            except:
+                raise AssertionError(f"There are images with a width value of 3640. Check faulty images: {[b for a, b in zip(is_faulty_dimension_list, dataset_assembly_results['train']['coco'].images) if a]}")
+
             del dataset_assembly_results['train']['coco']  # ToDo: Implement if needed
             del dataset_assembly_results['val']['coco']  # ToDo: Implement if needed
 
@@ -114,13 +129,15 @@ class DatasetCreator:
             calculate_dataset_stats(dataset_assembly_results['val']['path'],
                                     self.tmp_assemblies_path / assembly_hash / "stats" / 'val')
 
+
+
             assembly_config['data'] = dataset_assembly_results
             self.update_state(type="append", key='assemblies', value=assembly_config)
 
             return assembly_config
 
         else:
-            return [ass_conf for ass_conf in self.state['assemblies'] if ass_conf["hash"] == assembly_hash][0]
+            return assembly_in_state[0]
 
     def find_or_create_sliced_dataset(self, assembly_config: dict, one_sliced_dataset_config: dict) -> dict:
         assembly_config = deepcopy(assembly_config)

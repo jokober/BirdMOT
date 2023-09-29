@@ -41,6 +41,7 @@ class TrainingController:
         }
 
     def update_state(self, type, key, value):
+        self.load_state()
         if type == 'append':
             self.state[key].append(value)
         elif type == 'delete':
@@ -66,6 +67,7 @@ class TrainingController:
             "root['one_experiment_config']['model_config']['name']",
             "root['one_experiment_config']['model_config']['device']",
             "root['one_experiment_config']['model_config']['exists_ok']",
+            "root['one_experiment_config']['model_config']['conf']",
             "root['one_experiment_config']['sahi_prediction_params']",
             "root['one_experiment_config']['evaluation_config']",
             "root['one_experiment_config']['hash']",

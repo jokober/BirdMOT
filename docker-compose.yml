@@ -21,7 +21,7 @@ services:
       dockerfile: ./docker/Dockerfile.gpu
     volumes:
         - ./:/opt/BirdMOT
-        - /shared/datasets/BirdMOT/:/opt/local_data
+        - /shared_tmp/datasets/BirdMOT/:/opt/local_data
 
     deploy:
       resources:

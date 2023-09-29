@@ -2,6 +2,8 @@ import json
 import shutil
 from pathlib import Path
 
+from sahi.utils.coco import Coco
+
 from BirdMOT.data.DatasetCreator import DatasetCreator
 from fixtures.fixtures import assembly_configs, sliced_dataset_configs
 
@@ -32,6 +34,11 @@ def test_find_or_create_dataset_assembly(assembly_configs):
         'assemblies']], "The returned assembly should be in the state"
     assert len(dataset_creator.state['assemblies']) == 2, "There should be two assemblies in the state"
 
+
+    # Assert images in split datasets are disjoint
+    image_name_set_train = [image.file_name for image in Coco.from_coco_dict_or_path(returned_assembly3['data']['train']['path'].as_posix()).images]
+    image_name_set_val = [image.file_name for image in Coco.from_coco_dict_or_path(returned_assembly3['data']['val']['path'].as_posix()).images]
+    assert set(image_name_set_train).isdisjoint(image_name_set_val)
 
 def test_find_or_create_sliced_dataset(assembly_configs,
                                        sliced_dataset_configs):
@@ -159,6 +166,7 @@ def test_find_or_create_yolov5_fine_tuning_dataset(assembly_configs, sliced_data
     assert returned_yolov5_fine_tuning_dataset['data_yml_path'].exists()
     assert returned_yolov5_fine_tuning_dataset2['data_yml_path'].exists()
     assert returned_yolov5_fine_tuning_dataset3['data_yml_path'].exists()
+
 
 
 def test_plausibility_of_image_counts(assembly_configs, sliced_dataset_configs):
