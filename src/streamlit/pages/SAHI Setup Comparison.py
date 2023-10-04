@@ -128,7 +128,10 @@ with btab2:
                     encoding=None, decimal='.', multicolumn=None, multicolumn_format=None, multirow=None, caption=None,
                     label=None, position=None))
 
-
+with st.expander("Json Data"):
+    for i, row in dft.iterrows():
+        one_evaluation = [it for it in evaluations if it['setup_name'] == row[0]][0]
+        st.write(one_evaluation)
 
 # st.markdown(
 #     """
@@ -202,6 +205,7 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("## Single Datapoint Evaluation" )
+
 
 one_evaluation = [it for it in evaluations if it['setup_name'] == 'yolov8n_SAHI'][0]
 # fpr = one_evaluation['data']["eval_results_fiftyone"]['fpr']

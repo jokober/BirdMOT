@@ -16,13 +16,14 @@ if __name__ == "__main__":
 
     eval_controller = EvaluationController()
 
-
-    assert args.experiment_config.exists(), f"Experiment config {args.experiment_config} does not exist"
-    with open(args.experiment_config) as json_file:
+    experiments_config_path = args.experiment_config.resolve()
+    assert experiments_config_path, f"Experiment config {experiments_config_path} does not exist"
+    with open(experiments_config_path) as json_file:
         experiment_config = json.load(json_file)
 
-    assert args.assembly_config.exists(), f"Assembly config {args.assembly_config} does not exist"
-    with open(args.assembly_config) as json_file:
+    assembly_path = args.assembly_config.resolve()
+    assert assembly_path.exists(), f"Assembly config {assembly_path} does not exist"
+    with open(assembly_path) as json_file:
         assembly_config = json.load(json_file)
 
     for one_experiment_config in experiment_config['experiments']:
