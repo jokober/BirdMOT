@@ -1,14 +1,5 @@
 version: "3.8"
 services:
-#  tailscale: # ToDo: Remove in git
-#    build:
-#      context: ./docker/tailscale-docker/images/tailscale
-#    environment:
-#      TAILSCALE_AUTH_KEY: ${TAILSCALE_AUTH_KEY:?err}
-#      TAILSCALE_HOSTNAME: ${TAILSCALE_HOSTNAME:-tailscale-docker-simple-example}
-#      TAILSCALE_STATE_ARG: "mem:"
-      # (optional) set additional flags on tailscaled
-      # TAILSCALE_OPT: --outbound-http-proxy-listen=localhost:1055
   birdmot-gpu:
     image: jokober/birdmot-gpu:latest
     environment:
@@ -21,7 +12,7 @@ services:
       dockerfile: ./docker/Dockerfile.gpu
     volumes:
         - ./:/opt/BirdMOT
-        - /shared_tmp/datasets/BirdMOT/:/opt/local_data
+        - /shared/datasets/BirdMOT/:/opt/local_data
 
     deploy:
       resources:
@@ -32,4 +23,3 @@ services:
               capabilities: [gpu]
     #entrypoint: ["/bin/bash"]
     command: tail -f /dev/null
-#    network_mode: "service:tailscale"

@@ -212,10 +212,10 @@ def test_plausibility_of_image_counts(assembly_configs, sliced_dataset_configs):
     assert number_of_train_images_in_fine_tuning == expected_image_count_in_train_fine_tuning
     assert number_of_val_images_in_fine_tuning == expected_image_count_in_val_fine_tuning
 
-    types = ('*.png', '*.jpg')
+    types = ('.png', '.jpg')
     files_grabbed = []
-    for files in types:
-        files_grabbed.extend(returned_fine_tuning_dataset["data"]["train"]["path"].parent.glob(files))
+    for suffix in types:
+        files_grabbed.extend(returned_fine_tuning_dataset["data"]["train"]["path"].parent.glob('**/*'+ suffix))
     assert len(
         files_grabbed) == number_of_train_images_in_fine_tuning + number_of_val_images_in_fine_tuning, "There should be as many images in the folder fine tuning folder as in the train and val dataset combined"
 
@@ -244,6 +244,7 @@ def test_negatives_handling_plausability(assembly_configs, sliced_dataset_config
     returned_fine_tuning_dataset = dataset_creator.find_or_create_fine_tuning_dataset(assembly_configs,
                                                                                       sliced_dataset_configs)
 
+    assert assembly_configs['ignore_negative_samples'] == False
     assembly_configs['ignore_negative_samples'] = True
     returned_fine_tuning_dataset_wo_negatives = dataset_creator.find_or_create_fine_tuning_dataset(assembly_configs,
                                                                                                    sliced_dataset_configs)

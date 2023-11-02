@@ -10,7 +10,7 @@ This File does not accept ArgumentParser arguments as it lead to errors in the m
 """
 if __name__ == "__main__":
     device = [0,1,2,3]
-    experiment_config_path= Path("~/searchwing/local_data/configs/experiments/yolov8n_setup_comparison_320_1080_640.json").expanduser()
+    experiment_config_path= Path("/data/jokoko/local_data/configs/experiments/yolov8n_setup_comparison_320_640.json").expanduser()
     #experiment_config_path= Path("~/fids/local_data/configs/experiments/yolov8n_sahi_dataset_assembly2_rc_4good_tracks_in_val_full_resolution.json").expanduser()
     #experiment_config_path= Path("~/fids/local_data/configs/experiments/yolov8m_sahi_dataset_assembly2_rc_4good_tracks_in_val.json").expanduser()
     #assembly_config_path= Path("~/fids/local_data/configs/dataset_assembly/dataset_assembly2_rc_4good_tracks_in_val.json").expanduser()

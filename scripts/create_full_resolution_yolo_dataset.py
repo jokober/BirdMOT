@@ -10,7 +10,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--image_dir", type=str, required=True)
     parser.add_argument("--train_coco", type=str, required=True)
-    parser.add_argument("--val_coco", type=str, required=False)
+    parser.add_argument("--val_coco", type=str, required=True)
     args = parser.parse_args()
 
     train_coco = Coco.from_coco_dict_or_path(args.train_coco, image_dir=args.image_dir)
@@ -19,6 +19,7 @@ if __name__ == "__main__":
     data_yml_path = export_coco_as_yolov5(
         output_dir=args.output_dir,
         train_coco=train_coco,
+        val_coco=val_coco,
         numpy_seed=0,
         disable_symlink=True,
     )

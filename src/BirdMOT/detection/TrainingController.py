@@ -39,6 +39,7 @@ class TrainingController:
         self.state = {
             'models': [],
         }
+        self.write_state()
 
     def update_state(self, type, key, value):
         self.load_state()
@@ -80,11 +81,6 @@ class TrainingController:
                 model_hash not in [model_conf["hash"] for model_conf in self.state['models']]):
             if (self.tmp_model_path / assembly_config['dataset_assembly_id'] / model_hash).exists():
                 model_path = self.tmp_model_path / assembly_config['dataset_assembly_id'] / model_hash
-            elif (self.tmp_model_path / assembly_config['dataset_assembly_id'] / one_experiment_config['model_config'][
-                'name']).exists():
-                model_path = self.tmp_model_path / assembly_config['dataset_assembly_id'] / \
-                             one_experiment_config['model_config']['name']
-
             else:
                 if train_missing:
                     one_experiment_config["model_config"]["project"] = self.tmp_model_path / assembly_config[
@@ -113,6 +109,9 @@ class TrainingController:
             print((Path(model['data']['model_path']) / 'results.csv').as_posix())
             model['data']['results_df'] = pandas.read_csv(model_path / 'results.csv')
             model['data']['weights_path'] = model_path / 'weights' / 'best.pt'
+            #if not model['data']['weights_path'].exists():  # ToDo: Remove this if statement after problem of best.pt not generated is solved
+            #    model['data']['weights_path'] = model['data']['weights_path'].parent / 'last.pt'
+            #    assert model['data']['weights_path'].exists(), f"weights_path does not exist: {model['data']['weights_path']} Neither for best.pt nor for last.pt"
             model['hash'] = model_hash
 
             self.update_state(type="append", key='models', value=model)

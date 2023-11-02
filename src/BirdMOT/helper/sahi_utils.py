@@ -16,9 +16,7 @@ def create_sahi_setup_name(one_experiment_config: dict):
 
 
 def create_full_resolution_name(one_experiment_config: dict):
-    full_res = True if one_experiment_config['model_config']['rect'] else False
-
-    setup_name_elements = [get_model_type(one_experiment_config, include_version= True)] + [key for key, value in ({'full_res':full_res}).items() if value == True]
+    setup_name_elements = [get_model_type(one_experiment_config, include_version= True), 'full_res']
     setup_name = '_'.join(setup_name_elements)
     return setup_name
 
@@ -33,7 +31,9 @@ def get_setup_name(one_experiment_config: dict):
 
 def get_model_type(one_experiment_config: dict, include_version: bool):
     if include_version:
-        model_type = 'yolov8n' if 'yolov8n' in one_experiment_config['model_config']['model'] else None
+        model_type = one_experiment_config['model_config']['model']
+        model_type = model_type.removesuffix('.pt')
+        model_type = model_type.removesuffix('.json')
     elif not include_version:
         model_type = 'yolov8' if 'yolov8' in one_experiment_config['model_config']['model'] else None
     else:

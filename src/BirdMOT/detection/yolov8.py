@@ -61,7 +61,7 @@ def train_yolov8_2(yolo_data_path: Path,
     # torch.distributed.init_process_group()
 
     # Use the model
-    model.train(data=yolo_data_path.as_posix(), flipud=0.5, degrees=180,
+    model.train(data=yolo_data_path.as_posix(), save=True, val=True, flipud=0.5, degrees=180,
                 **yolo_train_params)  # ToDo: Put degrees somewhere else after getting rid of data class
 
     results = model.val()

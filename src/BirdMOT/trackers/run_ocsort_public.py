@@ -123,6 +123,6 @@ if __name__ == "__main__":
 
     #ToDo: Use mot eval instead of this
     print('Before DTI: ')
-    eval_mota(data_root, '/home/jo/test/abc.txt2')
+    eval_mota(data_root, '/home/jo/test/abc.txt')
     print('After DTI:')
     eval_mota(data_root, save_path)

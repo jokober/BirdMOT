@@ -212,7 +212,7 @@ def assemble_dataset(output_path: Path, assembly_config: dict, coco_files_path: 
 
     # Handle negative samples
     negative_samples = []
-    if assembly_config['ignore_negative_samples'] == True:
+    if assembly_config['ignore_negative_samples'] == False:
         for dataset in assembly_config['dataset_config']:
             # read coco file
             coco_dict: Dict = load_json((coco_files_path / dataset['coco_annotation_file_path']).as_posix())

@@ -3,9 +3,10 @@ channels:
   - conda-forge
 
 dependencies:
-  - python=3.9.*  # or don't specify the version and use the latest stable Python
+  - python=3.9.16  # or don't specify the version and use the latest stable Python
   - mamba
   - pip  # pip must be mentioned explicitly, or conda-lock will fail
   - poetry  # or 1.1.*, or no version at all -- as you want
   - scikit-image
   - imagecodecs
+  - msgpack-python

@@ -3,7 +3,7 @@
   "experiments": [
     {
       "model_config": {
-        "epochs": 2,
+        "epochs": 4,
         "batch": 7,
         "model": "yolov8n.pt",
         "patience": 20,

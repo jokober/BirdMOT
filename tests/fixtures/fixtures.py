@@ -3,7 +3,6 @@ from pathlib import Path
 
 import pytest
 
-config_fixture_path = Path(__file__).parents[1] / 'fixtures' / 'birdnet_config.ini'
 
 # COCO
 coco_annotations_fixture_dir = (Path(__file__).parents[1] / 'fixtures' / 'local_data/dataset/coco_files')

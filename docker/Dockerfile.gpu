@@ -29,8 +29,8 @@ RUN apt install -y \
     python3-distutils \
     python3-apt \
     python3-setuptools \
-    libgl1
-
+    libgl1 \
+    libcurl4
 # Link python3.9 to python3 and python
 #RUN ln -sf /usr/bin/python3.9 /usr/bin/python3 & \
 #    ln -sf /usr/bin/python3 /usr/bin/python & \
@@ -52,7 +52,7 @@ RUN poetry env use python3.9
 COPY . .
 RUN poetry install --no-interaction --no-ansi
 # Install packages only available using pip
-RUN poetry run pip3 install kaleido, fiftyone
-RUN poetry run pip3 install fiftyone-db-ubuntu2204
+RUN poetry run pip3 install kaleido fiftyone
+RUN poetry run pip3 install fiftyone-db-ubuntu2004
 #RUN poetry run python -m scripts.train_yolov8 --train_coco_path /opt/local_data/dataset/coco_files/dataset_assemblies/first_mix/first_mix_train.json --val_coco_path /opt/local_data/dataset/coco_files/dataset_assemblies/first_mix/first_mix_val.json --image_path /opt/local_data/dataset/images --experiment_config ./config/experiments/yolov8n_sahi.json
 

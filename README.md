@@ -14,6 +14,16 @@ Activate Conda Environment
 docker compose  -f docker-compose.yml build
 docker compose -f docker-compose.yml run birdmot-gpu
 ```
+install fiftyone:
+```console
+pip install fiftyone
+```
+Some operating systems like ubuntu 22.ß4 need alternative builds from fiftyone: ToDo. Link to fiftyone alternative builds.
+For example on Ubtuntu 22.04 you need to install fiftyone like this:
+```
+pip install fiftyone
+pip install fiftyone-db-ubuntu2204
+```
 
 ## Environment Variables
 Set following environment variable to the path of your local data folder. This is where your dataset, sliced datasets, models and more will be stored.
