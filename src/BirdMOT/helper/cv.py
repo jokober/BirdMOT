@@ -1,7 +1,9 @@
 from pathlib import Path
 
 import cv2
-def save_frames_as_img(video_path: Path, out_path: Path, image_format: str='png'):
+
+
+def save_frames_as_img(video_path: Path, out_path: Path, image_format: str = 'png'):
     """
     Save frames of a video as images
     Args:
@@ -12,7 +14,7 @@ def save_frames_as_img(video_path: Path, out_path: Path, image_format: str='png'
     Returns:
 
     """
-    #assert type(video_path) == Path, f"video_path must be of type Path, but is {type(video_path)}"
+    # assert type(video_path) == Path, f"video_path must be of type Path, but is {type(video_path)}"
     assert video_path.exists(), f"Video  {video_path} does not exist"
 
     vidcap = cv2.VideoCapture(video_path.as_posix())

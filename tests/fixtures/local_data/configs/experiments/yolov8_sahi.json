@@ -1,0 +1,54 @@
+{
+  "dataset_assembly_id": "test_assembly",
+  "experiments": [
+    {
+      "model_config": {
+        "epochs": 4,
+        "batch": 7,
+        "model": "yolov8n.pt",
+        "patience": 20,
+        "name": "YOLOv8n+FI+PO",
+        "project": "BirdMOT Yolov8x SAHI",
+        "device": "0",
+        "imgsz": 640,
+        "exist_ok": true
+      },
+      "sliced_datasets": [
+        {
+          "height": 640,
+          "width": 640,
+          "overlap_height_ratio": 0.1,
+          "overlap_width_ratio": 0.1,
+          "min_area_ratio": 0.2,
+          "ignore_negative_samples": false
+        },
+        {
+          "height": 320,
+          "width": 320,
+          "overlap_height_ratio": 0.1,
+          "overlap_width_ratio": 0.1,
+          "min_area_ratio": 0.2,
+          "ignore_negative_samples": false
+        }
+      ],
+      "sahi_prediction_params": {
+        "model_type": "yolov8",
+        "model_confidence_threshold": 0.2,
+        "no_standard_prediction": false,
+        "no_sliced_prediction": false,
+        "slice_height": 640,
+        "slice_width": 640,
+        "overlap_height_ratio": 0.2,
+        "overlap_width_ratio": 0.2,
+        "postprocess_type": "GREEDYNMM",
+        "postprocess_match_metric": "IOS",
+        "postprocess_match_threshold": 0.5,
+        "project": "Test BirdMOT",
+        "name": "test_exp"
+      },
+      "evaluation_config": {
+        "iou_thrs": 0.1
+      }
+    }
+  ]
+}

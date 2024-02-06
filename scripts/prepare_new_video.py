@@ -10,7 +10,7 @@ if __name__ == "__main__":
     parser.add_argument("--image_format", type=str, required=False)
     args = parser.parse_args()
 
-    save_frames_as_img(video_path = Path(args.video_path),
-                                     out_path = Path(args.out_path),
-                                     image_format= args.image_format
-                                     )
+    save_frames_as_img(video_path=Path(args.video_path),
+                       out_path=Path(args.out_path),
+                       image_format=args.image_format
+                       )

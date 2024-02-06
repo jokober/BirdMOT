@@ -1,0 +1,25 @@
+version: "3.8"
+services:
+  birdmot-gpu:
+    image: jokober/birdmot-gpu:latest
+    environment:
+      - BirdMOT_DATA_PATH=/opt/local_data
+
+    shm_size: '18gb'
+    build:
+      context: .
+
+      dockerfile: ./docker/Dockerfile.gpu
+    volumes:
+        - ./:/opt/BirdMOT
+        - /shared/datasets/BirdMOT/:/opt/local_data
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    #entrypoint: ["/bin/bash"]
+    command: tail -f /dev/null

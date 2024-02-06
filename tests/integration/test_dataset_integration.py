@@ -18,7 +18,7 @@ def test_merge_dataset_and_stats(tmp_path):
         coco_2)['num_images']
 
 def test_assemble_dataset(tmp_path):
-    dataset_assembly_results = assemble_dataset_from_config("test_assembly", dataset_config_fixture_path,
+    dataset_assembly_results = assemble_dataset_from_config(dataset_config_fixture_path,
                                                                         coco_annotations_fixture_dir, tmp_path,
                                                                         coco_images_fixture_path,
                                                                         coco_categories_fixture_path)
