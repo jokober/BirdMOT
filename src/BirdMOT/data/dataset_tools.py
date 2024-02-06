@@ -1,13 +1,13 @@
 import json
-import os
+import math
 import shutil
+import time
 from pathlib import Path, PosixPath
 from typing import List, Union, Dict
 
-from sahi.utils.coco import Coco, CocoVid, CocoVideo, CocoVidImage, CocoVidAnnotation, create_coco_dict
-from sahi.utils.file import save_json, load_json
 from sahi.utils.coco import Coco
-import time
+from sahi.utils.coco import CocoVid, CocoVideo, CocoVidImage, CocoVidAnnotation
+from sahi.utils.file import save_json
 
 
 def val_train_split(dataset_id: str, coco: Union[Path, Dict], output_path: Path, train_split_rate: float = 0.85):
@@ -198,10 +198,8 @@ def assemble_dataset(output_path: Path, assembly_config: dict, coco_files_path: 
     assert len(assembly_config['dataset_config']) == len(set([it['name'] for it in assembly_config['dataset_config']])), \
         "Dataset names must be unique"
 
-
     [absolute_to_relative_image_paths(coco_files_path / dataset['coco_annotation_file_path'], image_path) for dataset in
      assembly_config['dataset_config']]  # ToDo: Remove if all coco files only have relative paths
-
 
     # Create splits path lists
     train_splits, val_splits = zip(*[val_train_split(dataset_id=dataset['name'].replace(' ', '_'),
@@ -210,31 +208,10 @@ def assemble_dataset(output_path: Path, assembly_config: dict, coco_files_path: 
                                                      train_split_rate=dataset['train_split_rate'])
                                      for dataset in assembly_config['dataset_config']])
 
-    # Handle negative samples
-    negative_samples = []
-    if assembly_config['ignore_negative_samples'] == False:
-        for dataset in assembly_config['dataset_config']:
-            # read coco file
-            coco_dict: Dict = load_json((coco_files_path / dataset['coco_annotation_file_path']).as_posix())
-            coco = Coco.from_coco_dict_or_path(coco_dict)
-            negative_samples.extend([coco_image for coco_image in coco.images if len(coco_image.annotations) == 0])
+    # Create image path list
+    image_paths = [image_path for it in assembly_config['dataset_config']]  # ToDo: Depricated Remove!
 
-        with open(categories_path / assembly_config['coco_formatted_categories']) as json_file:
-            categories_dict = json.load(json_file)['categories']
-        negatives_coco_dict = create_coco_dict(
-            negative_samples, categories_dict, ignore_negative_samples=False
-        )
-        negatives_train, negatives_val = val_train_split(dataset_id='negatives',
-                                                         coco=negatives_coco_dict,
-                                                         output_path=assembly_dir / "splits",
-                                                         train_split_rate=assembly_config['negatives_split_ratio'])
-    else:
-        negatives_train, negatives_val = None, None
-
-        # Create image path list
-    image_paths = [image_path for it in assembly_config['dataset_config']] # ToDo: Depricated Remove!
-
-    # Crate dataset paths for train and val
+    # Create dataset paths for train and val
     train_dataset_path = assembly_dir / f"{assembly_config['hash']}_train.json"
     val_dataset_path = assembly_dir / f"{assembly_config['hash']}_val.json"
 
@@ -245,6 +222,15 @@ def assemble_dataset(output_path: Path, assembly_config: dict, coco_files_path: 
     val_coco: Coco = merge_coco_datasets(val_splits, image_paths,
                                          categories_path / assembly_config['coco_formatted_categories'],
                                          val_dataset_path)
+    for split_path, coco in [(train_dataset_path, train_coco), (val_dataset_path, val_coco)]:
+        # Subsample in order to limit amount of negative images in full res dataset
+        # coco = Coco.from_coco_dict_or_path(coco_dict)
+        ratio = len([coco_image for coco_image in coco.images if len(coco_image.annotations) == 0]) / (
+                len([coco_image for coco_image in coco.images if len(coco_image.annotations) != 0]) * 1 /
+                assembly_config['max_negatives_ratio'])
+        if ratio > 0:
+            coco = coco.get_subsampled_coco(subsample_ratio=math.ceil(ratio), category_id=-1)
+        save_json(coco.json, split_path.as_posix())
 
     return {
         "train": {
@@ -252,11 +238,7 @@ def assemble_dataset(output_path: Path, assembly_config: dict, coco_files_path: 
             "path": train_dataset_path},
         "val": {
             "coco": val_coco,
-            "path": val_dataset_path},
-        "negatives_train": {
-            "path": negatives_train},
-        "negatives_val": {
-            "path": negatives_val}
+            "path": val_dataset_path}
     }
 
 
@@ -284,6 +266,7 @@ def find_correct_image_path(image_folder_path: Path, old_image_path: str) -> Pat
 
 def absolute_to_relative_image_paths(coco_path: Path, image_path: Path, overwrite_file=True):  # ToDo: Depricated Remove
     # Go through all image paths in coco file and adjust them to absolute path on disk
+    print(coco_path)
     with open(coco_path) as json_file:
         coco_dict = json.load(json_file)
 
@@ -300,6 +283,7 @@ def absolute_to_relative_image_paths(coco_path: Path, image_path: Path, overwrit
             time.sleep(5)
 
     return coco_dict
+
 
 def find_relative_image_path(image_folder_path: Path, old_image_path: str) -> Path:  # ToDo: Depricated Remove
     parts = Path(old_image_path).parts
@@ -320,7 +304,7 @@ def find_relative_image_path(image_folder_path: Path, old_image_path: str) -> Pa
 
     try:
         assert (
-                    image_folder_path / new_image_path).exists(), f"New image path {(image_folder_path / new_image_path)} does not exist"
+                image_folder_path / new_image_path).exists(), f"New image path {(image_folder_path / new_image_path)} does not exist"
     except AssertionError:
         print(f"Assertion: New image path {new_image_path} does not exist")
         print(f"Assertion: Old image path {old_image_path}")

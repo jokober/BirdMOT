@@ -28,7 +28,6 @@ def test_find_or_create_prediction(one_experiment_config_fixture, assembly_confi
 
     assembly_config2 = assembly_configs
     assembly_config2['dataset_config'][1]["train_split_rate"] = 0.3
-
     returned_prediction3 = eval_controller.find_or_create_prediction(one_experiment_config_fixture, assembly_config2, device=0)
     assert returned_prediction3['hash'] in [one_prediction['hash'] for one_prediction in eval_controller.state[
         'predictions']], "The returned prediction should be in the state"
@@ -66,6 +65,13 @@ def test_find_or_create_evaluations(one_experiment_config_fixture, assembly_conf
     returned_evaluation3 = eval_controller.find_or_create_evaluation(one_experiment_config2, assembly_configs,
                                                                      device='0', train_missing=True)
     assert returned_evaluation3['hash'] in [one_evaluation['hash'] for one_evaluation in
+                                                eval_controller.state[
+                                                    'evaluations']], "The returned evaluation should be in the state"
+    assert len(eval_controller.state['evaluations']) == 2, "There should be two evaluations in the state"
+
+    returned_evaluation3_duplicate = eval_controller.find_or_create_evaluation(one_experiment_config2, assembly_configs,
+                                                                     device='0', train_missing=True)
+    assert returned_evaluation3_duplicate['hash'] in [one_evaluation['hash'] for one_evaluation in
                                                 eval_controller.state[
                                                     'evaluations']], "The returned evaluation should be in the state"
     assert len(eval_controller.state['evaluations']) == 2, "There should be two evaluations in the state"

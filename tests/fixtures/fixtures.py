@@ -25,7 +25,7 @@ primary_val_images_path_fixture = coco_images_fixture_path / "good_04_2021" / "C
 
 # Models
 yolov8_test_model = (
-        Path(__file__).parents[1] / 'fixtures' / "local_data" / "tmp_train_dir" / "models" / "test_assembly" / "YOLOv8n+FI+PO" )
+        Path(__file__).parents[1] / 'fixtures' / "local_data" / "tmp_train_dir" / "models" / "test_assembly" / "5380586a7cb3b08b9b6a3c785cf09dbcf5e2f5788d5c22423ddac8089f36baa1" )
 
 # Configs
 dataset_config_fixture_path = Path(__file__).parents[
@@ -61,7 +61,6 @@ def slice_params_fixture():
         overlap_height_ratio=0.1,
         overlap_width_ratio=0.1,
         min_area_ratio=0.2,
-        ignore_negative_samples=True
     )
 
 

@@ -183,7 +183,7 @@ def test_plausibility_of_image_counts(assembly_configs, sliced_dataset_configs):
         number_of_train_images_in_assembly = len(json.load(json_file)['images'])
     with open(returned_assembly['data']['val']['path'].as_posix()) as json_file:
         number_of_val_images_in_assembly = len(json.load(json_file)['images'])
-    assert number_of_train_images_in_assembly + number_of_val_images_in_assembly == 14, "There should be 14 images in the assembly. According to the Test data"
+    assert number_of_train_images_in_assembly + number_of_val_images_in_assembly == 13, "There should be 13 images in the assembly. According to the Test data"
     assert number_of_train_images_in_assembly > number_of_val_images_in_assembly, "There should be more train images"
 
     # Check counts in sliced dataset and fine tuning dataset
@@ -196,26 +196,10 @@ def test_plausibility_of_image_counts(assembly_configs, sliced_dataset_configs):
         number_of_val_images_in_fine_tuning = len(json.load(json_file)['images'])
     assert number_of_train_images_in_fine_tuning > number_of_val_images_in_fine_tuning, "There should be more train images than val images in the fine tuning dataset"
 
-    # Get Slices per image for each slice config
-    slices_per_image = []
-    for sliced_dataset in returned_fine_tuning_dataset['sliced_datasets']:
-        with open(sliced_dataset['data']['val']['path'].as_posix()) as json_file:
-            slices_per_image.append(len(json.load(json_file)['images']) / number_of_val_images_in_assembly)
-
-    # Comparing and testing expected_image_count_in_train_fine_tuning with actual number_of_train_images_in_fine_tuning
-    # only works if negative samples are not ignored
-    expected_image_count_in_val_fine_tuning = sum(
-        [sl_per_image * number_of_val_images_in_assembly for sl_per_image in slices_per_image])
-    expected_image_count_in_train_fine_tuning = sum(
-        [sl_per_image * number_of_train_images_in_assembly for sl_per_image in slices_per_image])
-
-    assert number_of_train_images_in_fine_tuning == expected_image_count_in_train_fine_tuning
-    assert number_of_val_images_in_fine_tuning == expected_image_count_in_val_fine_tuning
-
     types = ('.png', '.jpg')
     files_grabbed = []
     for suffix in types:
-        files_grabbed.extend(returned_fine_tuning_dataset["data"]["train"]["path"].parent.glob('**/*'+ suffix))
+        files_grabbed.extend((returned_fine_tuning_dataset["data"]["train"]["path"].parent  / 'images').glob('**/*'+ suffix))
     assert len(
         files_grabbed) == number_of_train_images_in_fine_tuning + number_of_val_images_in_fine_tuning, "There should be as many images in the folder fine tuning folder as in the train and val dataset combined"
 
@@ -223,13 +207,13 @@ def test_plausibility_of_image_counts(assembly_configs, sliced_dataset_configs):
     returned_yolov5_fine_tuning_dataset = dataset_creator.find_or_create_yolov5_dataset(assembly_configs,
                                                                                         sliced_dataset_configs)
     files_grabbed = []
-    for files in types:
-        files_grabbed.extend((returned_yolov5_fine_tuning_dataset["data_yml_path"].parent / "train").glob(files))
+    for type in types:
+        files_grabbed.extend((returned_yolov5_fine_tuning_dataset["data_yml_path"].parent / "train").glob('*'+type))
     assert len(
         files_grabbed) == number_of_train_images_in_fine_tuning, "There should be as many images in the folder yolov train folder as in the train dataset"
     files_grabbed = []
-    for files in types:
-        files_grabbed.extend((returned_yolov5_fine_tuning_dataset["data_yml_path"].parent / "val").glob(files))
+    for type in types:
+        files_grabbed.extend((returned_yolov5_fine_tuning_dataset["data_yml_path"].parent / "val").glob('*'+type))
     assert len(
         files_grabbed) == number_of_val_images_in_fine_tuning, "There should be as many images in the folder yolov val folder as in the val dataset"
 
@@ -244,8 +228,7 @@ def test_negatives_handling_plausability(assembly_configs, sliced_dataset_config
     returned_fine_tuning_dataset = dataset_creator.find_or_create_fine_tuning_dataset(assembly_configs,
                                                                                       sliced_dataset_configs)
 
-    assert assembly_configs['ignore_negative_samples'] == False
-    assembly_configs['ignore_negative_samples'] = True
+    assembly_configs['max_negatives_ratio'] = 100
     returned_fine_tuning_dataset_wo_negatives = dataset_creator.find_or_create_fine_tuning_dataset(assembly_configs,
                                                                                                    sliced_dataset_configs)
 

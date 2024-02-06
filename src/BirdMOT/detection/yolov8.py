@@ -8,6 +8,7 @@ from BirdMOT.data.DatasetCreator import DatasetCreator
 
 YOLOV8_PRETRAINED_MODELS = ["YOLOv8n", "YOLOv8s", "YOLOv8m", "YOLOv8l", "YOLOv8x"]
 
+
 @dataclass
 class Yolov8TrainParams:  # Todo: Deprecated Safe Delete
     """
@@ -52,19 +53,16 @@ def train_yolov8(yolo_data_path: Path, yolo_train_params: Yolov8TrainParams):
 
 
 def train_yolov8_2(yolo_data_path: Path,
-                   yolo_train_params: dict):  # ToDo: New version. Delete old one and rename this one.
+                   yolo_train_params: dict,
+                   cli_subprocess=False):  # ToDo: New version. Delete old one and rename this one.
     # Load a model
     model = YOLO(yolo_train_params['model'])
 
-    # import torch
-    # assert torch.cuda.is_available()
-    # torch.distributed.init_process_group()
-
-    # Use the model
     model.train(data=yolo_data_path.as_posix(), save=True, val=True, flipud=0.5, degrees=180,
                 **yolo_train_params)  # ToDo: Put degrees somewhere else after getting rid of data class
 
-    results = model.val()
+    save_dir = Path(yolo_train_params['project']) / yolo_train_params['name']
+    results = {'save_dir': save_dir}
     return results  # evaluate model performance on the validation set
 
 

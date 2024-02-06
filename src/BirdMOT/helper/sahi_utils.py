@@ -1,7 +1,9 @@
 def create_sahi_setup_name(one_experiment_config: dict):
     sahi = (not one_experiment_config['sahi_prediction_params']["no_sliced_prediction"] and
-            (one_experiment_config['sahi_prediction_params']['slice_height'] < one_experiment_config['model_config']['imgsz'])
-            or one_experiment_config['sahi_prediction_params']['slice_width'] < one_experiment_config['model_config']['imgsz'])
+            (one_experiment_config['sahi_prediction_params']['slice_height'] < one_experiment_config['model_config'][
+                'imgsz'])
+            or one_experiment_config['sahi_prediction_params']['slice_width'] < one_experiment_config['model_config'][
+                'imgsz'])
     sf = any(
         aug_dataset['height'] < one_experiment_config['model_config']['imgsz'] for aug_dataset
         in one_experiment_config['sliced_datasets'])
@@ -9,14 +11,15 @@ def create_sahi_setup_name(one_experiment_config: dict):
     po = one_experiment_config['sahi_prediction_params']['overlap_height_ratio'] != 0 and \
          one_experiment_config['sahi_prediction_params']['overlap_width_ratio'] != 0
 
-    sahi_setup_name_elements = [get_model_type(one_experiment_config, include_version= True)] + [key for key, value in ({'SF':sf,'SAHI': sahi,'FI':fi, 'PO':po}).items() if value == True]
+    sahi_setup_name_elements = [get_model_type(one_experiment_config, include_version=True)] + [key for key, value in (
+        {'SF': sf, 'SAHI': sahi, 'FI': fi, 'PO': po}).items() if value == True]
     setup_name = '_'.join(sahi_setup_name_elements)
-    #assert setup_name != 'yolov8n', f"The setup name should not be empty. {one_experiment_config}"
+    # assert setup_name != 'yolov8n', f"The setup name should not be empty. {one_experiment_config}"
     return setup_name
 
 
 def create_full_resolution_name(one_experiment_config: dict):
-    setup_name_elements = [get_model_type(one_experiment_config, include_version= True), 'full_res']
+    setup_name_elements = [get_model_type(one_experiment_config, include_version=True), 'full_res']
     setup_name = '_'.join(setup_name_elements)
     return setup_name
 

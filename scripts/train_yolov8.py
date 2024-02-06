@@ -22,7 +22,8 @@ if __name__ == "__main__":
 
     for experiment in experiment_config["experiments"]:
         print(experiment)
-        experiment["model_config"]["project"] = (DatasetCreator().models_dir / experiment_config["dataset_assembly_id"]).as_posix()
+        experiment["model_config"]["project"] = (
+                    DatasetCreator().models_dir / experiment_config["dataset_assembly_id"]).as_posix()
         sliced_yolov8_train_2(
             assembly_configs=assembly_config,
             sliced_dataset_configs=experiment["sliced_datasets"],

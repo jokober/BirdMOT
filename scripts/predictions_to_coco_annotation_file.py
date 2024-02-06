@@ -5,12 +5,12 @@ from pathlib import Path
 from PIL import Image
 from sahi import AutoDetectionModel
 from sahi.predict import get_sliced_prediction
-
 from sahi.utils.coco import Coco, CocoImage, CocoAnnotation
 from sahi.utils.file import save_json
 
 
-def create_coco_annotation_file_from_path(image_path: Path, output_path: Path, coco_categories_path: Path, model_path: str, image_path_prefix: str = ""):
+def create_coco_annotation_file_from_path(image_path: Path, output_path: Path, coco_categories_path: Path,
+                                          model_path: str, image_path_prefix: str = ""):
     # Init Sahi Coco object
     coco = Coco(image_dir=image_path.parent.as_posix())
     # Add categories
@@ -42,7 +42,6 @@ def create_coco_annotation_file_from_path(image_path: Path, output_path: Path, c
         )
         prediction_list = sahi_result.to_coco_annotations()
 
-
         # Add Coco image including the predicted annotations
         coco_image = CocoImage(file_name=image_path_prefix + filename.name, height=height, width=width)
         for pred in prediction_list:
@@ -59,6 +58,7 @@ def create_coco_annotation_file_from_path(image_path: Path, output_path: Path, c
     coco_json = coco.json
     save_json(coco_json, output_path.as_posix())
 
+
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--image_path", type=str, required=True)
@@ -68,5 +68,6 @@ if __name__ == "__main__":
     parser.add_argument("--image_path_prefix", type=str, required=True)
     args = parser.parse_args()
 
-    create_coco_annotation_file_from_path(Path(args.image_path), Path(args.output_path), Path(args.coco_categories_path), model_path = args.model_path, image_path_prefix=args.image_path_prefix)
-
+    create_coco_annotation_file_from_path(Path(args.image_path), Path(args.output_path),
+                                          Path(args.coco_categories_path), model_path=args.model_path,
+                                          image_path_prefix=args.image_path_prefix)

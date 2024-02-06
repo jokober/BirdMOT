@@ -1,9 +1,8 @@
 from pathlib import Path
 
-import fiftyone.utils.coco as fouc
+import fiftyone as fo
 import fiftyone.utils.coco as fouc
 import numpy as np
-import fiftyone as fo
 
 
 def fiftyone_evaluation(image_path: Path, labels_path: Path, predictions_path: Path, iou=0.1, iou_thresholds=None):
@@ -36,8 +35,8 @@ def fiftyone_evaluation(image_path: Path, labels_path: Path, predictions_path: P
             iou=iou
             # use_boxes=True
         )
-    #asd = coco_dataset.field_names
-    field_schema= coco_dataset.get_field_schema()
+    # asd = coco_dataset.field_names
+    field_schema = coco_dataset.get_field_schema()
 
     print(coco_dataset)
     tp_iou_results = [coco_dataset.sum(f"eval{str(iou).replace('.', '')}_tp") for iou in iou_thresholds]

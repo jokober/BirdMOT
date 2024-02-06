@@ -1,3 +1,4 @@
+import math
 import os
 import pickle
 import shutil
@@ -101,7 +102,7 @@ class DatasetCreator:
         assembly_hash = DeepHash(assembly_config)[assembly_config]
 
         assembly_in_state = [ass_conf for ass_conf in self.state['assemblies'] if ass_conf["hash"] == assembly_hash]
-        if len(assembly_in_state) == 0 or not  assembly_in_state[0]['data']['train']['path'].exists():
+        if len(assembly_in_state) == 0 or not assembly_in_state[0]['data']['train']['path'].exists():
             print("Assembly hash not found in existing assemblies. Creating new dataset assembly.")
             assembly_config['hash'] = assembly_hash
 
@@ -111,28 +112,28 @@ class DatasetCreator:
                                                         image_path=self.images_dir,
                                                         categories_path=self.coco_categories_path)
 
-            # Assert images in split datasets are disjoint
-            image_name_set_train = [image.file_name for image in dataset_assembly_results['train']['coco'].images]
-            image_name_set_val = [image.file_name for image in dataset_assembly_results['val']['coco'].images]
-            assert set(image_name_set_train).isdisjoint(image_name_set_val)
-
             # Assert that there are no images with a width value of 3640. This is only required as there where a faulty
             # Datsaset #ToDO: Remove this assertion as soon as the faulty dataset is removed
             try:
-                is_faulty_dimension_list = [image.width == 3640 for image in dataset_assembly_results['train']['coco'].images]
+                is_faulty_dimension_list = [image.width == 3640 for image in
+                                            dataset_assembly_results['train']['coco'].images]
                 assert not any(is_faulty_dimension_list)
             except:
-                raise AssertionError(f"There are images with a width value of 3640. Check faulty images: {[b for a, b in zip(is_faulty_dimension_list, dataset_assembly_results['train']['coco'].images) if a]}")
+                raise AssertionError(
+                    f"There are images with a width value of 3640. Check faulty images: {[b for a, b in zip(is_faulty_dimension_list, dataset_assembly_results['train']['coco'].images) if a]}")
 
             del dataset_assembly_results['train']['coco']  # ToDo: Implement if needed
             del dataset_assembly_results['val']['coco']  # ToDo: Implement if needed
 
-            calculate_dataset_stats(dataset_assembly_results['train']['path'],
-                                    self.tmp_assemblies_path / assembly_hash / "stats" / 'train')
-            calculate_dataset_stats(dataset_assembly_results['val']['path'],
-                                    self.tmp_assemblies_path / assembly_hash / "stats" / 'val')
+            train_stats = calculate_dataset_stats(dataset_assembly_results['train']['path'],
+                                                  self.tmp_assemblies_path / assembly_hash / "stats" / 'train')
+            val_stats = calculate_dataset_stats(dataset_assembly_results['val']['path'],
+                                                self.tmp_assemblies_path / assembly_hash / "stats" / 'val')
 
-
+            assert train_stats['num_negatives'] / train_stats[
+                'num_images'] < 0.22, f"The sliced dataset contains too many negative samples.{train_stats['num_negatives'] / train_stats['num_images']}"
+            assert val_stats['num_negatives'] / val_stats[
+                'num_images'] < 0.22, f"The sliced dataset contains too many negative samples.{val_stats['num_negatives'] / val_stats['num_images']}"
 
             assembly_config['data'] = dataset_assembly_results
             self.update_state(type="append", key='assemblies', value=assembly_config)
@@ -143,13 +144,17 @@ class DatasetCreator:
             return assembly_in_state[0]
 
     def find_or_create_sliced_dataset(self, assembly_config: dict, one_sliced_dataset_config: dict) -> dict:
+        """
+        Creates a sliced dataset from Full Res Train/Val sets created in dataset assembly.
+
+        """
         assembly_config = deepcopy(assembly_config)
         one_sliced_dataset_config = deepcopy(one_sliced_dataset_config)
 
         dataset_assembly = self.find_or_create_dataset_assembly(assembly_config)
         one_sliced_dataset_config["assembly_hash"] = dataset_assembly["hash"]
 
-        deephash_exclude_paths=[
+        deephash_exclude_paths = [
             "root['one_experiment_config']['model_config']",
             "root['one_experiment_config']['sahi_prediction_params']",
             "root['one_experiment_config']['evaluation_config']",
@@ -157,7 +162,8 @@ class DatasetCreator:
             "root['data']",
             "root['hash']",
         ]
-        sliced_dataset_hash = DeepHash(one_sliced_dataset_config, exclude_paths=deephash_exclude_paths)[one_sliced_dataset_config]
+        sliced_dataset_hash = DeepHash(one_sliced_dataset_config, exclude_paths=deephash_exclude_paths)[
+            one_sliced_dataset_config]
 
         if sliced_dataset_hash not in [sliced_dat["hash"] for sliced_dat in self.state['sliced_datasets']]:
             print("Sliced Dataset hash not found in existing assemblies. Creating new sliced dataset.")
@@ -165,10 +171,7 @@ class DatasetCreator:
             # Relative paths from sliced dataset folder to image folders
             rel_sl_img_path_positives = Path(
                 f"./images/{one_sliced_dataset_config['height']}x{one_sliced_dataset_config['width']}_{one_sliced_dataset_config['overlap_height_ratio']}_{one_sliced_dataset_config['overlap_width_ratio']}") / 'positives'
-            rel_sl_img_path_negatives = Path(
-                f"./images/{one_sliced_dataset_config['height']}x{one_sliced_dataset_config['width']}_{one_sliced_dataset_config['overlap_height_ratio']}_{one_sliced_dataset_config['overlap_width_ratio']}") / 'negatives'
             abs_sl_img_path_positives = self.sliced_datasets_dir / sliced_dataset_hash / rel_sl_img_path_positives
-            abs_sl_img_path_negatives = self.sliced_datasets_dir / sliced_dataset_hash / rel_sl_img_path_negatives
 
             # Do the splitting of the positive samples
             one_sliced_dataset_config["data"] = {}
@@ -177,84 +180,62 @@ class DatasetCreator:
                     coco_annotation_file_path=dataset_assembly['data'][split]['path'].as_posix(),
                     image_dir=self.images_dir.as_posix(),
                     output_coco_annotation_file_name=f"sliced_{split}",
-                    ignore_negative_samples=True,
+                    ignore_negative_samples=False,
                     output_dir=abs_sl_img_path_positives.as_posix(),
                     slice_height=one_sliced_dataset_config['height'],
                     slice_width=one_sliced_dataset_config['width'],
                     overlap_height_ratio=one_sliced_dataset_config['overlap_height_ratio'],
                     overlap_width_ratio=one_sliced_dataset_config['overlap_width_ratio'],
                     min_area_ratio=one_sliced_dataset_config['min_area_ratio'],
-                    out_ext = ".png",
+                    out_ext=".png",
                     verbose=False,
                 )
+
+                # Subsample in order to limit amount of negative images
+                coco = Coco.from_coco_dict_or_path(coco_dict)
+                ratio = len([coco_image for coco_image in coco.images if len(coco_image.annotations) == 0]) / (
+                            len([coco_image for coco_image in coco.images if len(coco_image.annotations) != 0]) * 1 /
+                            assembly_config['max_negatives_ratio'])
+                coco = coco.get_subsampled_coco(
+                    subsample_ratio=math.ceil(ratio), category_id=-1)
+                save_json(coco.json, coco_path.as_posix())
+
+                stats = calculate_dataset_stats(coco_path,
+                                                self.sliced_datasets_dir / sliced_dataset_hash / "stats" / split)
+                assert stats['num_negatives'] / stats[
+                    'num_images'] < 0.26, f"The sliced dataset contains too many negative samples.{stats['num_negatives'] / stats['num_images']}"
+
                 # Move coco file
                 coco_path = Path(shutil.move(coco_path, self.sliced_datasets_dir / sliced_dataset_hash))
                 # Change file_name to match folder structure
-                coco = Coco.from_coco_dict_or_path(coco_dict)
-                for split_subfolder in range(int(len(coco.images) / 5000)+1):
-                    (abs_sl_img_path_positives  / str(split_subfolder)).mkdir(parents=True, exist_ok=True)
+                for split_subfolder in range(int(len(coco.images) / 5000) + 1):
+                    (abs_sl_img_path_positives / str(split_subfolder)).mkdir(parents=True, exist_ok=True)
                 for c, image in enumerate(coco.images):
                     split_subfolder = int(c / 5000)
                     # Apparently there was a race condition. This is a quick fix
                     timer_counter = 0
                     while not (abs_sl_img_path_positives / image.file_name).exists():
                         time.sleep(1)
-                        timer_counter+1
+                        timer_counter += 1
                         if timer_counter > 60:
                             raise TimeoutError("The sliced dataset images were not created in time.")
-                    shutil.move(abs_sl_img_path_positives / image.file_name, abs_sl_img_path_positives / str(split_subfolder) / image.file_name)
+                    shutil.move(abs_sl_img_path_positives / image.file_name,
+                                abs_sl_img_path_positives / str(split_subfolder) / image.file_name)
                     image.file_name = (
-                        rel_sl_img_path_positives / str(split_subfolder) / image.file_name).as_posix()
+                            rel_sl_img_path_positives / str(split_subfolder) / image.file_name).as_posix()
                 coco_dict = coco.json
                 save_json(coco_dict, coco_path.as_posix())
-
-                # Merge negative samples with sliced dataset
-                if assembly_config['ignore_negative_samples'] == False:
-                    neg_coco_dict, neg_coco_path = slice_coco(
-                        coco_annotation_file_path=dataset_assembly['data']['negatives_' + split]['path'].as_posix(),
-                        image_dir=self.images_dir.as_posix(),
-                        output_coco_annotation_file_name=f"negatives_sliced_{split}",
-                        ignore_negative_samples=False,
-                        output_dir=abs_sl_img_path_negatives.as_posix(),
-                        slice_height=one_sliced_dataset_config['height'],
-                        slice_width=one_sliced_dataset_config['width'],
-                        overlap_height_ratio=one_sliced_dataset_config['overlap_height_ratio'],
-                        overlap_width_ratio=one_sliced_dataset_config['overlap_width_ratio'],
-                        min_area_ratio=one_sliced_dataset_config['min_area_ratio'],
-                        out_ext = ".png",
-                        verbose=False,
-                    )
-                    # Move coco file
-                    neg_coco_path = Path(shutil.move(neg_coco_path, self.sliced_datasets_dir / sliced_dataset_hash ))
-                    # Move images into subfolders if there are too many and change file_name to match folder structure
-                    neg_coco = Coco.from_coco_dict_or_path(neg_coco_dict)
-                    for split_subfolder in range(int(len(neg_coco.images) / 5000)+1):
-                        (abs_sl_img_path_negatives / str(split_subfolder)).mkdir(parents=True, exist_ok=True)
-                    for c, image in enumerate(neg_coco.images):
-                        split_subfolder = int(c / 5000)
-                        # Apparently there was a race condition. This is a quick fix
-                        if not (abs_sl_img_path_negatives / image.file_name).exists():
-                            time.sleep(10)
-                        shutil.move(
-                            abs_sl_img_path_negatives / image.file_name,
-                            abs_sl_img_path_negatives / str(
-                                split_subfolder) / image.file_name)
-                        image.file_name = (rel_sl_img_path_negatives / str(split_subfolder) / image.file_name).as_posix()
-                    neg_coco_dict = neg_coco.json
-                    save_json(neg_coco_dict, neg_coco_path.as_posix())
-                    # Merge positives with negatives
-                    merge_coco_datasets([coco_path, neg_coco_path], self.sliced_datasets_dir / sliced_dataset_hash,
-                                        self.coco_categories_path / assembly_config[
-                                            'coco_formatted_categories'], coco_path)
 
                 # Remove unused slices
                 types = ('.png', '.jpg')
                 files_grabbed = []
                 for suffix in types:
-                    [os.remove(file) for file in abs_sl_img_path_positives.glob('*'+ suffix)]
-                    [os.remove(file) for file in abs_sl_img_path_negatives.glob('*'+ suffix)]
+                    [os.remove(file) for file in abs_sl_img_path_positives.glob('*' + suffix)]
 
-                calculate_dataset_stats(coco_path, self.sliced_datasets_dir / sliced_dataset_hash / "stats" / split)
+                stats = calculate_dataset_stats(coco_path,
+                                                self.sliced_datasets_dir / sliced_dataset_hash / "stats" / split)
+                assert stats['num_negatives'] / stats[
+                    'num_images'] < 0.26, f"The sliced dataset contains too many negative samples.{stats['num_negatives'] / stats['num_images']}"
 
                 one_sliced_dataset_config["data"][split] = {
                     "path": coco_path,
@@ -271,6 +252,16 @@ class DatasetCreator:
                  sliced_dat["hash"] == sliced_dataset_hash][0]
 
     def find_or_create_fine_tuning_dataset(self, assembly_config, sliced_dataset_configs):
+        """
+        Merges all relevant sliced datasets into one fine tuning dataset.
+        Args:
+            assembly_config:
+            sliced_dataset_configs:
+
+        Returns:
+
+        """
+
         assembly_config = deepcopy(assembly_config)
         sliced_dataset_configs = deepcopy(sliced_dataset_configs)
 
@@ -284,7 +275,7 @@ class DatasetCreator:
             'assembly': dataset_assembly,
             'sliced_datasets': sliced_datasets,
         }
-        deephash_exclude_paths=[
+        deephash_exclude_paths = [
             "root['one_experiment_config']['model_config']",
             "root['one_experiment_config']['sahi_prediction_params']",
             "root['one_experiment_config']['evaluation_config']",
@@ -313,7 +304,7 @@ class DatasetCreator:
                 types = ('.png', '.jpg')
                 files_grabbed = []
                 for suffix in types:
-                    files_grabbed.extend((sliced_datasets_path / 'images').glob('**/*'+ suffix))
+                    files_grabbed.extend((sliced_datasets_path / 'images').glob('**/*' + suffix))
 
                 for orig_file in files_grabbed:
                     rel_img_path = os.path.relpath(orig_file, sliced_datasets_path)
@@ -330,29 +321,21 @@ class DatasetCreator:
             # Merge all sliced datasets coco files
             for split in ("train", "val"):
                 coco_files = [sl_dataset["data"][split]["path"] for sl_dataset in sliced_datasets]
+                coco_path = ft_dataset_path / f"{split}.json"
                 merged_coco = merge_coco_datasets(coco_json_paths=coco_files,
                                                   image_paths=ft_dataset_path,
                                                   categories=self.coco_categories_path / assembly_config[
                                                       'coco_formatted_categories'],
-                                                  output_path=ft_dataset_path / f"{split}.json")
+                                                  output_path=coco_path)
 
-                coco_path = ft_dataset_path / f"{split}.json"
-
-                if assembly_config['ignore_negative_samples']:
-                    # Subsample in order to limit amount of negative images
-                    subsampled_coco = merged_coco.get_subsampled_coco(
-                        subsample_ratio=assembly_config['max_negatives_ratio'], category_id=-1)
-                    save_json(subsampled_coco.json, coco_path.as_posix())
-                    fine_tuning_coco = subsampled_coco
-                else:
-                    fine_tuning_coco = merged_coco
+                stats = calculate_dataset_stats(coco_path, ft_dataset_path / "stats" / split)
+                assert stats['num_negatives'] / stats[
+                    'num_images'] < 0.26, f"The sliced dataset contains too many negative samples.{stats['num_negatives'] / stats['num_images']}"
 
                 fine_tuning_dataset['data'][split] = {
                     "path": coco_path,
-                    "coco": fine_tuning_coco,
+                    "coco": merged_coco,
                 }
-
-                calculate_dataset_stats(coco_path, ft_dataset_path / "stats" / split)
 
             self.update_state(type="append", key='fine_tuning_datasets', value=fine_tuning_dataset)
             return fine_tuning_dataset.copy()

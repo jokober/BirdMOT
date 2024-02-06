@@ -51,7 +51,7 @@ class TrainingController:
             raise NotImplementedError("The type is not implemented.")
         self.write_state()
 
-    def find_or_train_model(self, one_experiment_config: dict, assembly_config=None, device='cpu', train_missing=False):
+    def find_or_train_model(self, one_experiment_config: dict, assembly_config=None, device='cpu', train_missing=True):
         one_experiment_config = deepcopy(one_experiment_config)
         assembly_config = deepcopy(assembly_config)
         assembly = DatasetCreator().find_or_create_dataset_assembly(assembly_config)
@@ -77,6 +77,7 @@ class TrainingController:
         ]
         model_hash = DeepHash(model, exclude_paths=deephash_exclude_paths)[model]
 
+        model_path = self.tmp_model_path / assembly_config['dataset_assembly_id'] / model_hash
         if (model_hash not in [model_conf["hash"] for model_conf in self.state['models']]) or (
                 model_hash not in [model_conf["hash"] for model_conf in self.state['models']]):
             if (self.tmp_model_path / assembly_config['dataset_assembly_id'] / model_hash).exists():
@@ -91,10 +92,9 @@ class TrainingController:
                         sliced_dataset_configs=one_experiment_config["sliced_datasets"],
                         yolo_train_params=one_experiment_config["model_config"],
                         device=device)
-                    print(training_run)
                     # model['data']['result_dict'] = training_run.result_dict()
-                    model['data']['speed'] = training_run.speed
-                    model_path = Path(training_run.save_dir)
+                    # model['data']['speed'] = training_run.speed
+                    model_path = Path(training_run['save_dir'])
                 else:
                     print("state models")
                     print(self.state['models'])
@@ -109,7 +109,7 @@ class TrainingController:
             print((Path(model['data']['model_path']) / 'results.csv').as_posix())
             model['data']['results_df'] = pandas.read_csv(model_path / 'results.csv')
             model['data']['weights_path'] = model_path / 'weights' / 'best.pt'
-            #if not model['data']['weights_path'].exists():  # ToDo: Remove this if statement after problem of best.pt not generated is solved
+            # if not model['data']['weights_path'].exists():  # ToDo: Remove this if statement after problem of best.pt not generated is solved
             #    model['data']['weights_path'] = model['data']['weights_path'].parent / 'last.pt'
             #    assert model['data']['weights_path'].exists(), f"weights_path does not exist: {model['data']['weights_path']} Neither for best.pt nor for last.pt"
             model['hash'] = model_hash
@@ -117,6 +117,7 @@ class TrainingController:
             self.update_state(type="append", key='models', value=model)
         else:
             model = \
-            [model for model in self.state['models'] if model["hash"] == model_hash or model["hash"] == model_hash][0]
+                [model for model in self.state['models'] if model["hash"] == model_hash or model["hash"] == model_hash][
+                    0]
 
         return model

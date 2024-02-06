@@ -19,7 +19,7 @@ if __name__ == "__main__":
         args.output_path = DatasetCreator().dataset_assemblies_dir
 
     # Create dataset assembled by the config
-    dataset_assembly_results = assemble_dataset_from_config( args.config,
+    dataset_assembly_results = assemble_dataset_from_config(args.config,
                                                             args.coco_annotations_dir, args.output_path,
                                                             args.image_path, args.categories_path)
 
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     datasets_stats = [{
         'name': assembly_name + '_train',
         'stats': dataset_assembly_results['train']['coco'].stats
-    },{
+    }, {
         'name': assembly_name + '_val',
         'stats': dataset_assembly_results['val']['coco'].stats
     }

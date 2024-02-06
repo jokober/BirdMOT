@@ -10,8 +10,8 @@ if __name__ == "__main__":
     parser.add_argument("--experiment_config", type=Path, required=True)
     parser.add_argument("--assembly_config", type=Path, required=True)
     parser.add_argument("--device", type=str, required=False, default='cpu')
-    parser.add_argument("--train_missing",  default=False, action=argparse.BooleanOptionalAction)
-    parser.add_argument("--overwrite_existing",  default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--train_missing", default=False, action=argparse.BooleanOptionalAction)
+    parser.add_argument("--overwrite_existing", default=False, action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
 
     eval_controller = EvaluationController()

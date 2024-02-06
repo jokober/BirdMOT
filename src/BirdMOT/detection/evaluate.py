@@ -71,7 +71,7 @@ class EvaluationController:
         self.write_state()
 
     def find_or_create_prediction(self, one_experiment_config: dict, assembly_config, device='cpu',
-                                  train_missing=False):
+                                  train_missing=True):
         one_experiment_config = deepcopy(one_experiment_config)
         assembly_config = deepcopy(assembly_config)
 
@@ -124,6 +124,13 @@ class EvaluationController:
         ]
         prediction_hash = DeepHash(prediction_config, exclude_paths=deephash_exclude_paths)[prediction_config]
 
+        # for pred in self.state['predictions']:
+        #    print(pred['hash'])
+        # print(f"Seached for hash {prediction_hash}")
+
+        # import time
+        # time.sleep(5)
+
         # Create predictions if they do not exist yet
         if prediction_hash not in [pred_conf["hash"] for pred_conf in self.state['predictions']]:
             coco, pred_coco_path, source = self.generate_prediction_folder_with_coco_file(
@@ -147,7 +154,7 @@ class EvaluationController:
         return prediction_config
 
     def find_or_create_evaluation(self, one_experiment_config: dict, assembly_config: dict, device: str = 'cpu',
-                                  train_missing: bool = False, overwrite_existing=False):
+                                  train_missing: bool = True, overwrite_existing=False):
         one_experiment_config = deepcopy(one_experiment_config)
         assembly_config = deepcopy(assembly_config)
 
@@ -180,13 +187,20 @@ class EvaluationController:
         if overwrite_existing:
             self.delete_existing('evaluations', evaluation_hash)
 
+        # for hash in  self.state['evaluations']:
+        #    print(hash['hash'])
+
+        # print(f"Searched for {evaluation_hash}")
+        # import time
+        # time.sleep(5)
+
         # Check if evaluation already exists return if so or create otherwise
         if evaluation_hash not in [eval_hash["hash"] for eval_hash in self.state['evaluations']]:
             predictions_path = Path(prediction_results['data']['export_dir']) / 'result.json'
             # Evaluation
             eval_results = evaluate_coco(dataset_json_path=prediction_results['coco_path'],
                                          result_json_path=predictions_path.as_posix(),
-                                         #iou_thrs=one_experiment_config['evaluation_config']['iou_thrs'],
+                                         # iou_thrs=one_experiment_config['evaluation_config']['iou_thrs'],
                                          out_dir=(self.tmp_eval_path / evaluation_hash / "evaluation").as_posix())
 
             # Analysis
