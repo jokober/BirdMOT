@@ -2,9 +2,7 @@ BirdMOT Detection
 ========
 This repository contains the code used to run experiments on bird detection for my master thesis. 
 
-.. image:: http://unmaintained.tech/badge.svg
-  :target: http://unmaintained.tech
-  :alt: No Maintenance Intended
+[![No Maintenance Intended](http://unmaintained.tech/badge.svg)](http://unmaintained.tech/)
 
 *Note: This code is not intended to be maintained.*
 
