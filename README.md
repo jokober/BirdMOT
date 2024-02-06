@@ -16,7 +16,7 @@ conda env create -f environment.yml
 Activate Conda Environment
 ```bash
  conda activate BirdMOT
-``
+```
 
 ## Install using docker
 ```bash
